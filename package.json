@@ -1,0 +1,14 @@
+{
+  "name": "hk-land-scrape",
+  "private": true,
+  "workspaces": ["client", "server", "shared"],
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "dev:server": "bun run --filter server dev",
+    "dev:client": "bun run --filter client dev",
+    "ingest": "bun run --filter server ingest",
+    "scrape": "bun run --filter server scrape",
+    "db:generate": "bun run --filter server db:generate",
+    "db:migrate": "bun run --filter server db:migrate"
+  }
+}

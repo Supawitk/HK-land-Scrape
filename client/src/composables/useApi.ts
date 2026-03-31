@@ -28,8 +28,11 @@ export function useApi() {
     getTramStops: () => apiFetch<any[]>(`${BASE_URL}/transport/tram/stops`),
     getNearbyTransport: (lat: number, lng: number, radius?: number) =>
       apiFetch<any>(`${BASE_URL}/transport/nearby`, { lat, lng, radius }),
-    getPopulation: () => apiFetch<any[]>(`${BASE_URL}/population`),
-    getPopulationByDistrict: (id: string) => apiFetch<any[]>(`${BASE_URL}/population/${id}`),
+    getPopulation: () => apiFetch<any>(`${BASE_URL}/population`),
+    getPopulationByDistrict: (id: string) => apiFetch<any>(`${BASE_URL}/population/${id}`),
+    getBuildingStock: (type?: string) => apiFetch<any[]>(`${BASE_URL}/buildings/stock`, { type }),
+    getBuildingAge: () => apiFetch<any[]>(`${BASE_URL}/buildings/age`),
+    getHeatmap: (metric: string) => apiFetch<any[]>(`${BASE_URL}/buildings/heatmap`, { metric }),
     getScraperStatus: () => apiFetch<any>(`${BASE_URL}/scraper/status`),
     runScraper: (listingType?: string) =>
       fetch(`${BASE_URL}/scraper/run`, {

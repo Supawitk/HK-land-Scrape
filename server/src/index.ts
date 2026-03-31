@@ -6,6 +6,7 @@ import { propertiesPlugin } from "./plugins/properties";
 import { transportPlugin } from "./plugins/transport";
 import { populationPlugin } from "./plugins/population";
 import { scraperPlugin } from "./plugins/scraper";
+import { buildingsPlugin } from "./plugins/buildings";
 
 const PORT = parseInt(process.env.PORT || "3000");
 
@@ -31,6 +32,7 @@ const app = new Elysia()
   .use(transportPlugin)
   .use(populationPlugin)
   .use(scraperPlugin)
+  .use(buildingsPlugin)
   .listen(PORT);
 
 console.log(`🏠 HK Property Dashboard API running at http://localhost:${PORT}`);

@@ -27,9 +27,9 @@ export async function ingestCitybus() {
   }
   console.log(`  Inserted ${routeCount} Citybus routes`);
 
-  // Collect unique stop IDs from route-stop mappings (sample first 50 routes to keep it fast)
+  // Collect unique stop IDs from ALL route-stop mappings
   const stopIds = new Set<string>();
-  const sampleRoutes = routes.slice(0, 50);
+  const sampleRoutes = routes;
 
   for (const r of sampleRoutes) {
     try {

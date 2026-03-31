@@ -24,6 +24,7 @@ const districtsStore = useDistrictsStore();
 const district = ref<any>(null);
 const properties = ref<any[]>([]);
 const nearby = ref<any>(null);
+const buildingStock = ref<any[]>([]);
 const loading = ref(true);
 
 async function loadDistrict() {
@@ -31,12 +32,14 @@ async function loadDistrict() {
   const id = route.params.id as string;
   try {
     await districtsStore.fetchAll();
-    const [d, props] = await Promise.all([
+    const [d, props, stock] = await Promise.all([
       api.getDistrict(id),
       api.getProperties({ districtId: id, limit: 10 }),
+      api.getBuildingStock().then((all) => all.filter((s: any) => s.district_id === id)),
     ]);
     district.value = d;
     properties.value = props.data;
+    buildingStock.value = stock;
 
     if (d.centroid_lat && d.centroid_lng) {
       nearby.value = await api.getNearbyTransport(d.centroid_lat, d.centroid_lng, 2);
@@ -49,18 +52,15 @@ async function loadDistrict() {
 watch(() => route.params.id, loadDistrict);
 onMounted(loadDistrict);
 
-const populationChart = computed(() => {
-  if (!district.value?.population) return null;
-  const p = district.value.population;
+const stockChart = computed(() => {
+  if (!buildingStock.value.length) return null;
   return {
-    labels: ["Male", "Female"],
-    datasets: [
-      {
-        label: "Population",
-        data: [p.male, p.female],
-        backgroundColor: ["#3b82f6", "#ec4899"],
-      },
-    ],
+    labels: buildingStock.value.map((s) => s.property_type.charAt(0).toUpperCase() + s.property_type.slice(1)),
+    datasets: [{
+      label: "Units/sqft",
+      data: buildingStock.value.map((s) => s.stock || 0),
+      backgroundColor: ["#3b82f6", "#f59e0b", "#22c55e", "#8b5cf6"],
+    }],
   };
 });
 
@@ -81,42 +81,48 @@ function formatPrice(price: number | null, type: string): string {
     <div v-if="loading" class="text-center py-12 text-gray-400">Loading...</div>
 
     <template v-else-if="district">
-      <!-- Header -->
       <div class="bg-white rounded-lg p-6 shadow-sm border mb-6">
         <h1 class="text-2xl font-bold text-gray-800">{{ district.name_en }}</h1>
         <p class="text-lg text-gray-500">{{ district.name_zh }} &mdash; {{ district.zone_name }}</p>
         <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <div class="text-xs text-gray-500">Area</div>
-            <div class="text-lg font-semibold">{{ district.area_km_sq }} km²</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-500">Population</div>
-            <div class="text-lg font-semibold">{{ district.population ? (district.population.population / 1000).toFixed(0) + 'k' : 'N/A' }}</div>
+            <div class="text-lg font-semibold">{{ district.area_km_sq ? district.area_km_sq + ' km²' : 'N/A' }}</div>
           </div>
           <div>
             <div class="text-xs text-gray-500">Listings</div>
             <div class="text-lg font-semibold">{{ district.stats?.total_listings || 0 }}</div>
           </div>
           <div>
-            <div class="text-xs text-gray-500">Avg Price</div>
+            <div class="text-xs text-gray-500">Avg Price (Buy)</div>
             <div class="text-lg font-semibold">
-              {{ district.stats?.avg_price ? '$' + Math.round(district.stats.avg_price).toLocaleString() : 'N/A' }}
+              {{ district.stats?.avg_price ? '$' + Math.round(district.stats.avg_price).toLocaleString() : 'No data' }}
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500">Avg $/sqft</div>
+            <div class="text-lg font-semibold">
+              {{ district.stats?.avg_price_per_sqft ? '$' + Math.round(district.stats.avg_price_per_sqft).toLocaleString() : 'No data' }}
             </div>
           </div>
         </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Population chart -->
+        <!-- Building stock -->
         <div class="bg-white rounded-lg p-4 shadow-sm border">
-          <h2 class="font-semibold text-gray-700 mb-3">Population (2023)</h2>
-          <Bar
-            v-if="populationChart"
-            :data="populationChart"
-            :options="{ responsive: true, plugins: { legend: { display: false } } }"
-          />
-          <p v-else class="text-gray-400 text-sm">No population data</p>
+          <h2 class="font-semibold text-gray-700 mb-3">Building Stock (RVD 2024)</h2>
+          <Bar v-if="stockChart" :data="stockChart" :options="{ responsive: true, plugins: { legend: { display: false } } }" />
+          <div v-if="buildingStock.length" class="mt-3 space-y-1 text-sm">
+            <div v-for="s in buildingStock" :key="s.property_type" class="flex justify-between">
+              <span class="text-gray-600 capitalize">{{ s.property_type }}</span>
+              <span>
+                {{ s.stock?.toLocaleString() || 'N/A' }} units
+                <span v-if="s.vacancy_rate" class="text-gray-400">({{ s.vacancy_rate }}% vacant)</span>
+              </span>
+            </div>
+          </div>
+          <p v-else class="text-gray-400 text-sm">No building stock data for this district.</p>
         </div>
 
         <!-- Nearby transport -->
@@ -136,11 +142,13 @@ function formatPrice(price: number | null, type: string): string {
               </div>
             </div>
             <div v-if="nearby.busStops?.length">
-              <div class="text-xs text-gray-500 uppercase mt-2">Bus Stops (nearby)</div>
-              <div class="text-sm text-gray-600">{{ nearby.busStops.length }} bus stops within 2km</div>
+              <div class="text-xs text-gray-500 uppercase mt-2">Bus Stops (within 2km)</div>
+              <div class="text-sm text-gray-600">{{ nearby.busStops.length }} stops</div>
+            </div>
+            <div v-if="!nearby.mtrStations?.length && !nearby.tramStops?.length && !nearby.busStops?.length">
+              <p class="text-gray-400 text-sm">No transport data ingested yet.</p>
             </div>
           </div>
-          <p v-else class="text-gray-400 text-sm">No transport data</p>
         </div>
       </div>
 
@@ -148,19 +156,12 @@ function formatPrice(price: number | null, type: string): string {
       <div class="bg-white rounded-lg p-4 shadow-sm border mt-6">
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-semibold text-gray-700">Recent Properties</h2>
-          <RouterLink
-            :to="{ path: '/properties', query: { districtId: district.id } }"
-            class="text-sm text-blue-600 hover:underline"
-          >
+          <RouterLink :to="{ path: '/properties', query: { districtId: district.id } }" class="text-sm text-blue-600 hover:underline">
             View all →
           </RouterLink>
         </div>
         <div v-if="properties.length" class="space-y-2">
-          <div
-            v-for="p in properties"
-            :key="p.id"
-            class="flex justify-between items-center py-2 border-b last:border-0"
-          >
+          <div v-for="p in properties" :key="p.id" class="flex justify-between items-center py-2 border-b last:border-0">
             <div>
               <div class="font-medium text-sm">{{ p.estate_name || 'Property' }}</div>
               <div class="text-xs text-gray-500">
@@ -173,7 +174,7 @@ function formatPrice(price: number | null, type: string): string {
             </div>
           </div>
         </div>
-        <p v-else class="text-gray-400 text-sm">No properties scraped yet for this district.</p>
+        <p v-else class="text-gray-400 text-sm">No properties scraped yet. Run the scraper to populate data.</p>
       </div>
     </template>
   </div>

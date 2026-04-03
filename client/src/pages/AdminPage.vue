@@ -10,6 +10,10 @@ const ingesting = ref(false);
 const scrapeResult = ref<any>(null);
 const ingestResult = ref<any>(null);
 const scrapeType = ref("buy");
+const ingestingPop = ref(false);
+const ingestingAmenities = ref(false);
+const popResult = ref<any>(null);
+const amenitiesResult = ref<any>(null);
 const logs = ref<string[]>([]);
 
 onMounted(refreshStatus);
@@ -52,6 +56,38 @@ async function runIngestion() {
     ingestResult.value = { error: err.message };
   } finally {
     ingesting.value = false;
+  }
+}
+
+async function runPopulationIngest() {
+  ingestingPop.value = true;
+  popResult.value = null;
+  addLog("Loading population data...");
+  try {
+    popResult.value = await api.ingestPopulation();
+    addLog("Population data loaded!");
+    await refreshStatus();
+  } catch (err: any) {
+    addLog(`Population error: ${err.message}`);
+    popResult.value = { error: err.message };
+  } finally {
+    ingestingPop.value = false;
+  }
+}
+
+async function runAmenitiesIngest() {
+  ingestingAmenities.value = true;
+  amenitiesResult.value = null;
+  addLog("Loading schools & hospitals...");
+  try {
+    amenitiesResult.value = await api.ingestAmenities();
+    addLog("Schools & hospitals loaded!");
+    await refreshStatus();
+  } catch (err: any) {
+    addLog(`Amenities error: ${err.message}`);
+    amenitiesResult.value = { error: err.message };
+  } finally {
+    ingestingAmenities.value = false;
   }
 }
 
@@ -157,6 +193,33 @@ const busBreakdown = computed(() => {
         <div class="mt-3 text-xs text-slate-400">
           This fetches from official DATA.GOV.HK and MTR open data APIs.
           <br>KMB, CityBus, GMB, NLB stops and routes will be updated.
+        </div>
+      </div>
+    </div>
+
+    <!-- Population & Amenities -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="stat-card">
+        <h2 class="section-title mb-1">Population Data</h2>
+        <p class="text-xs text-slate-400 mb-4">Load 2021 census + 2024 mid-year population estimates</p>
+        <button @click="runPopulationIngest" :disabled="ingestingPop" class="btn btn-primary" :class="{ 'opacity-50 cursor-not-allowed': ingestingPop }">
+          <svg v-if="ingestingPop" class="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          {{ ingestingPop ? 'Loading...' : 'Load Population Data' }}
+        </button>
+        <div v-if="popResult" class="mt-3 p-3 rounded-xl text-sm" :class="popResult.error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'">
+          {{ popResult.error || 'Population data loaded!' }}
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <h2 class="section-title mb-1">Schools & Hospitals</h2>
+        <p class="text-xs text-slate-400 mb-4">Fetch from EDB (schools) and Hospital Authority (hospitals)</p>
+        <button @click="runAmenitiesIngest" :disabled="ingestingAmenities" class="btn btn-primary" :class="{ 'opacity-50 cursor-not-allowed': ingestingAmenities }">
+          <svg v-if="ingestingAmenities" class="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          {{ ingestingAmenities ? 'Loading...' : 'Load Schools & Hospitals' }}
+        </button>
+        <div v-if="amenitiesResult" class="mt-3 p-3 rounded-xl text-sm" :class="amenitiesResult.error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'">
+          {{ amenitiesResult.error || 'Amenities data loaded!' }}
         </div>
       </div>
     </div>

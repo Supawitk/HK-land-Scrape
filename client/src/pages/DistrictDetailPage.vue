@@ -19,6 +19,8 @@ const district = ref<any>(null);
 const properties = ref<any[]>([]);
 const nearby = ref<any>(null);
 const buildingStock = ref<any[]>([]);
+const livabilityScore = ref<any>(null);
+const nearbyAmenities = ref<any>(null);
 const loading = ref(true);
 
 async function loadDistrict() {
@@ -35,8 +37,16 @@ async function loadDistrict() {
     properties.value = props.data;
     buildingStock.value = stock;
 
+    // Fetch livability score for this district
+    api.getLivabilityScores().then((scores) => {
+      livabilityScore.value = scores.find((s: any) => s.id === id) || null;
+    }).catch(() => {});
+
     if (d.centroid_lat && d.centroid_lng) {
       nearby.value = await api.getNearbyTransport(d.centroid_lat, d.centroid_lng, 2);
+      api.getNearbyAmenities(d.centroid_lat, d.centroid_lng, 2).then((a) => {
+        nearbyAmenities.value = a;
+      }).catch(() => {});
     }
   } finally {
     loading.value = false;
@@ -98,6 +108,13 @@ function formatPrice(price: number | null, type: string): string {
           <div class="flex-1 min-w-0">
             <h1 class="text-2xl font-bold text-slate-800">{{ district.name_en }}</h1>
             <p class="text-slate-500">{{ district.name_zh }} &mdash; {{ district.zone_name }}</p>
+          </div>
+          <!-- Livability Score Badge -->
+          <div v-if="livabilityScore" class="flex-shrink-0 text-center">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl" :class="livabilityScore.scores.total >= 70 ? 'bg-emerald-500' : livabilityScore.scores.total >= 50 ? 'bg-amber-500' : 'bg-rose-500'">
+              {{ livabilityScore.scores.total }}
+            </div>
+            <div class="text-[10px] text-slate-400 mt-1">Livability</div>
           </div>
         </div>
 
@@ -196,6 +213,38 @@ function formatPrice(price: number | null, type: string): string {
 
             <div v-if="!nearby.mtrStations?.length && !nearby.tramStops?.length && !nearby.busStops?.length && !nearby.lightRailStops?.length && !nearby.ferryPiers?.length">
               <p class="text-slate-400 text-sm">No transport data. Run ingestion first.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nearby Amenities -->
+      <div v-if="nearbyAmenities && (nearbyAmenities.schools?.length || nearbyAmenities.hospitals?.length)" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div v-if="nearbyAmenities.schools?.length" class="stat-card">
+          <h2 class="section-title mb-3">Nearby Schools ({{ nearbyAmenities.schools.length }})</h2>
+          <div class="space-y-1.5 max-h-48 overflow-y-auto">
+            <div v-for="s in nearbyAmenities.schools.slice(0, 15)" :key="s.id" class="flex items-center gap-2 py-1">
+              <div class="w-6 h-6 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                <svg class="w-3.5 h-3.5 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" /><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" /></svg>
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs text-slate-700 truncate">{{ s.name_en }}</div>
+                <div class="text-[10px] text-slate-400">{{ s.level || '' }} {{ s.category || '' }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="nearbyAmenities.hospitals?.length" class="stat-card">
+          <h2 class="section-title mb-3">Nearby Healthcare ({{ nearbyAmenities.hospitals.length }})</h2>
+          <div class="space-y-1.5 max-h-48 overflow-y-auto">
+            <div v-for="h in nearbyAmenities.hospitals" :key="h.id || h.name_en" class="flex items-center gap-2 py-1">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" :class="h.has_ae ? 'bg-rose-100' : 'bg-pink-50'">
+                <svg class="w-3.5 h-3.5" :class="h.has_ae ? 'text-rose-600' : 'text-pink-500'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20" /></svg>
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs text-slate-700 truncate">{{ h.name_en }}</div>
+                <div class="text-[10px] text-slate-400">{{ h.cluster || '' }} <span v-if="h.has_ae" class="text-rose-500 font-medium">A&E</span></div>
+              </div>
             </div>
           </div>
         </div>

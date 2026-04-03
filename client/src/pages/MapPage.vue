@@ -20,6 +20,12 @@ let busLayer: L.LayerGroup;
 let tramLayer: L.LayerGroup;
 let lightRailLayer: L.LayerGroup;
 let ferryLayer: L.LayerGroup;
+let schoolLayer: L.LayerGroup;
+let hospitalLayer: L.LayerGroup;
+let lightTileLayer: L.TileLayer;
+let darkTileLayer: L.TileLayer;
+
+const darkMode = ref(false);
 
 const layers = ref({
   districts: true,
@@ -28,6 +34,8 @@ const layers = ref({
   tram: true,
   lightRail: false,
   ferry: true,
+  schools: false,
+  hospitals: false,
 });
 
 const heatmapMetric = ref("none");
@@ -111,10 +119,10 @@ async function initMap() {
   if (!mapContainer.value) return;
 
   map = L.map(mapContainer.value).setView([22.35, 114.15], 11);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-    maxZoom: 19,
-  }).addTo(map);
+  const attr = '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>';
+  lightTileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: attr, maxZoom: 19 });
+  darkTileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { attribution: attr, maxZoom: 19 });
+  lightTileLayer.addTo(map);
 
   // Load GeoJSON districts
   const res = await fetch("/geojson/hk-districts.geo.json");
@@ -154,6 +162,8 @@ async function initMap() {
   tramLayer = L.layerGroup().addTo(map);
   lightRailLayer = L.layerGroup();
   ferryLayer = L.layerGroup().addTo(map);
+  schoolLayer = L.layerGroup();
+  hospitalLayer = L.layerGroup();
 
   await transportStore.fetchAll();
   renderMtr();
@@ -242,11 +252,56 @@ async function loadBusStops() {
   }
 }
 
+async function loadSchools() {
+  if (!map) return;
+  schoolLayer.clearLayers();
+  try {
+    const bounds = map.getBounds();
+    const schools = await api.getSchools({
+      minLat: String(bounds.getSouth()), maxLat: String(bounds.getNorth()),
+      minLng: String(bounds.getWest()), maxLng: String(bounds.getEast()),
+    });
+    for (const s of schools) {
+      if (!s.lat || !s.lng) continue;
+      L.circleMarker([s.lat, s.lng], { radius: 3, color: "#f97316", weight: 1, fillColor: "#fb923c", fillOpacity: 0.8 })
+        .bindPopup(`<strong>${s.name_en}</strong><br><span style="color:#94a3b8">${s.name_zh || ""}</span><br><small style="color:#f97316">${s.level || "School"} &middot; ${s.category || ""}</small>`)
+        .addTo(schoolLayer);
+    }
+  } catch {}
+}
+
+async function loadHospitals() {
+  if (!map) return;
+  hospitalLayer.clearLayers();
+  try {
+    const hospitals = await api.getHospitals({});
+    for (const h of hospitals) {
+      if (!h.lat || !h.lng) continue;
+      const icon = h.has_ae ? "#dc2626" : "#f43f5e";
+      L.circleMarker([h.lat, h.lng], { radius: 4.5, color: "#fff", weight: 2, fillColor: icon, fillOpacity: 1 })
+        .bindPopup(`<strong>${h.name_en}</strong><br><span style="color:#94a3b8">${h.name_zh || ""}</span><br><small>${h.cluster || ""}</small>${h.has_ae ? '<br><span style="color:#dc2626;font-weight:bold">A&E Available</span>' : ""}`)
+        .addTo(hospitalLayer);
+    }
+  } catch {}
+}
+
+function toggleDarkMode() {
+  darkMode.value = !darkMode.value;
+  if (darkMode.value) {
+    map.removeLayer(lightTileLayer);
+    darkTileLayer.addTo(map);
+  } else {
+    map.removeLayer(darkTileLayer);
+    lightTileLayer.addTo(map);
+  }
+}
+
 function toggleLayer(key: keyof typeof layers.value) {
   layers.value[key] = !layers.value[key];
   if (!map) return;
   const layerMap: Record<string, L.LayerGroup | L.GeoJSON> = {
-    districts: districtLayer, mtr: mtrLayer, bus: busLayer, tram: tramLayer, lightRail: lightRailLayer, ferry: ferryLayer,
+    districts: districtLayer, mtr: mtrLayer, bus: busLayer, tram: tramLayer,
+    lightRail: lightRailLayer, ferry: ferryLayer, schools: schoolLayer, hospitals: hospitalLayer,
   };
   const layer = layerMap[key];
   if (!layer) return;
@@ -254,6 +309,8 @@ function toggleLayer(key: keyof typeof layers.value) {
     map.addLayer(layer);
     if (key === "bus") loadBusStops();
     if (key === "lightRail") renderLightRail();
+    if (key === "schools") loadSchools();
+    if (key === "hospitals") loadHospitals();
   } else {
     map.removeLayer(layer);
   }
@@ -282,14 +339,36 @@ onMounted(initMap);
       v-show="controlsOpen"
       class="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 space-y-4 w-52"
     >
-      <div>
-        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Layers</div>
+      <!-- Dark mode toggle -->
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Theme</span>
+        <button @click="toggleDarkMode" class="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors" :class="darkMode ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'">
+          {{ darkMode ? 'Dark' : 'Light' }}
+        </button>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3">
+        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Transport</div>
         <div class="space-y-1.5">
-          <label v-for="(val, key) in layers" :key="key" class="flex items-center gap-2.5 cursor-pointer py-0.5">
+          <label v-for="(val, key) in { districts: layers.districts, mtr: layers.mtr, bus: layers.bus, tram: layers.tram, lightRail: layers.lightRail, ferry: layers.ferry }" :key="key" class="flex items-center gap-2.5 cursor-pointer py-0.5">
             <input type="checkbox" :checked="val" @change="toggleLayer(key as any)" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" />
             <span class="text-xs text-slate-600">
-              {{ key === "mtr" ? "MTR" : key === "bus" ? "Bus Stops" : key === "lightRail" ? "Light Rail" : key === "ferry" ? "Ferry Piers" : key === "tram" ? "Tram & Peak" : "Districts" }}
+              {{ key === "mtr" ? "MTR" : key === "bus" ? "Bus Stops" : key === "lightRail" ? "Light Rail" : key === "ferry" ? "Ferry" : key === "tram" ? "Tram & Peak" : "Districts" }}
             </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3">
+        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Amenities</div>
+        <div class="space-y-1.5">
+          <label class="flex items-center gap-2.5 cursor-pointer py-0.5">
+            <input type="checkbox" :checked="layers.schools" @change="toggleLayer('schools')" class="rounded border-slate-300 text-orange-500 focus:ring-orange-400 w-3.5 h-3.5" />
+            <span class="text-xs text-slate-600">Schools</span>
+          </label>
+          <label class="flex items-center gap-2.5 cursor-pointer py-0.5">
+            <input type="checkbox" :checked="layers.hospitals" @change="toggleLayer('hospitals')" class="rounded border-slate-300 text-rose-500 focus:ring-rose-400 w-3.5 h-3.5" />
+            <span class="text-xs text-slate-600">Hospitals</span>
           </label>
         </div>
       </div>
@@ -325,6 +404,8 @@ onMounted(initMap);
         <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-violet-500" style="width:8px;height:8px"></span> GMB</div>
         <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500" style="width:8px;height:8px"></span> Light Rail</div>
         <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400" style="width:8px;height:8px"></span> Ferry</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-400" style="width:8px;height:8px"></span> Schools</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500" style="width:8px;height:8px"></span> Hospitals</div>
       </div>
     </div>
   </div>

@@ -29,6 +29,11 @@ export const router = createRouter({
       component: () => import("@/pages/AnalyticsPage.vue"),
     },
     {
+      path: "/tools",
+      name: "tools",
+      component: () => import("@/pages/ToolsPage.vue"),
+    },
+    {
       path: "/admin",
       name: "admin",
       component: () => import("@/pages/AdminPage.vue"),

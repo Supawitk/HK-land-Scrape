@@ -17,6 +17,7 @@ const navItems = [
   { path: "/properties", label: "Properties", icon: "properties" },
   { path: "/transport", label: "Transport", icon: "transport" },
   { path: "/analytics", label: "Analytics", icon: "analytics" },
+  { path: "/tools", label: "Tools", icon: "tools" },
   { path: "/admin", label: "Data Manager", icon: "admin" },
 ];
 
@@ -83,6 +84,10 @@ function isActive(path: string) {
           <!-- Analytics -->
           <svg v-else-if="item.icon === 'analytics'" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M18 20V10M12 20V4M6 20v-6" stroke-linecap="round" />
+          </svg>
+          <!-- Tools -->
+          <svg v-else-if="item.icon === 'tools'" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
           </svg>
           <!-- Admin -->
           <svg v-else-if="item.icon === 'admin'" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

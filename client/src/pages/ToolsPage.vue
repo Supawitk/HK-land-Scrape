@@ -37,7 +37,7 @@ function fmt(n: number) { return n >= 1e6 ? `HK$${(n / 1e6).toFixed(2)}M` : `HK$
 </script>
 
 <template>
-  <div class="p-6 max-w-[1100px]">
+  <div class="px-5 py-5 max-w-[1400px]">
     <h1 class="page-title mb-5">Tools</h1>
 
     <div class="grid grid-cols-2 gap-4">

@@ -49,7 +49,7 @@ function sColor(s: number) { return s >= 70 ? "#059669" : s >= 50 ? "#d97706" : 
 </script>
 
 <template>
-  <div class="p-6 max-w-[1100px]">
+  <div class="px-5 py-5 max-w-[1400px]">
     <h1 class="page-title mb-5">Analytics</h1>
 
     <div v-if="stats" class="grid grid-cols-4 gap-3 mb-5">

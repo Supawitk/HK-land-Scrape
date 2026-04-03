@@ -38,7 +38,7 @@ const busOps = computed(() => status.value?.counts?.bus_by_operator || []);
 </script>
 
 <template>
-  <div class="p-6 max-w-[1100px]">
+  <div class="px-5 py-5 max-w-[1400px]">
     <h1 class="page-title mb-5">Data Manager</h1>
 
     <!-- Counts -->

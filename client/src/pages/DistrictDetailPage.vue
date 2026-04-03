@@ -49,7 +49,7 @@ function sColor(s: number) { return s >= 70 ? "#059669" : s >= 50 ? "#d97706" : 
 </script>
 
 <template>
-  <div class="p-6 max-w-[900px]">
+  <div class="px-5 py-5 max-w-[1400px]">
     <button @click="router.back()" class="text-[12px] text-[#6b7280] hover:text-[#374151] mb-4 inline-flex items-center gap-1">
       <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Back
     </button>

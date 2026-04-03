@@ -64,7 +64,7 @@ const chartOpts = { responsive: true, plugins: { legend: { display: false } }, s
 </script>
 
 <template>
-  <div class="p-6 max-w-[1100px]">
+  <div class="px-5 py-5 max-w-[1400px]">
     <!-- Header -->
     <div class="flex items-center justify-between mb-5">
       <h1 class="page-title">Dashboard</h1>

@@ -53,7 +53,7 @@ const activeOp = computed(() => ops.find(o => o.id === selectedOp.value));
 </script>
 
 <template>
-  <div class="p-6 max-w-[1100px]">
+  <div class="px-5 py-5 max-w-[1400px]">
     <h1 class="page-title mb-5">Transport</h1>
 
     <!-- Summary -->

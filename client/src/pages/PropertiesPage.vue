@@ -26,7 +26,7 @@ const pages = computed(() => { const r=[]; const s=Math.max(1,ps.page-3); const 
 </script>
 
 <template>
-  <div class="p-6 max-w-[1100px]">
+  <div class="px-5 py-5 max-w-[1400px]">
     <h1 class="page-title mb-1">Properties</h1>
     <p class="text-[12px] text-[#9ca3af] mb-5">Scraped from 28Hse.com</p>
 

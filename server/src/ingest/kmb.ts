@@ -55,43 +55,5 @@ export async function ingestKmb() {
   }
   console.log(`  Inserted ${routeCount} KMB routes`);
 
-  // Fetch route-stop mappings to ensure we have complete stop coverage
-  // The route-stop endpoint provides stop sequences for each route
-  console.log("  Fetching KMB route-stop mappings...");
-  const routeStopRes = await fetch(`${KMB_ROUTE_STOP_URL}`);
-  const routeStopJson = await routeStopRes.json() as any;
-  const routeStops = routeStopJson.data || [];
-
-  // Collect any stop IDs that might be missing from the main stops list
-  const existingStops = new Set(stops.map((s: any) => s.stop));
-  const missingStopIds = new Set<string>();
-  for (const rs of routeStops) {
-    if (rs.stop && !existingStops.has(rs.stop)) {
-      missingStopIds.add(rs.stop);
-    }
-  }
-
-  // Fetch missing stops individually
-  if (missingStopIds.size > 0) {
-    console.log(`  Found ${missingStopIds.size} additional stops from route-stop mapping`);
-    let extraCount = 0;
-    for (const stopId of missingStopIds) {
-      try {
-        const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop/${stopId}`);
-        const json = await res.json() as any;
-        const s = json.data;
-        if (s && s.lat && s.long) {
-          const lat = parseFloat(s.lat);
-          const lng = parseFloat(s.long);
-          if (!isNaN(lat) && !isNaN(lng) && lat !== 0) {
-            insertStop.run(s.stop, s.name_en || "Unknown", s.name_tc || "未知", lat, lng);
-            extraCount++;
-          }
-        }
-      } catch { /* skip */ }
-    }
-    console.log(`  Inserted ${extraCount} additional KMB stops from route-stop data`);
-  }
-
-  console.log(`  KMB ingestion complete: ${count + (missingStopIds.size)} total stops, ${routeCount} routes`);
+  console.log(`  KMB ingestion complete: ${count} stops, ${routeCount} routes`);
 }

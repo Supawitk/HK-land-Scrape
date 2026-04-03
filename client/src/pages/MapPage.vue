@@ -323,90 +323,43 @@ onMounted(initMap);
   <div class="relative h-screen">
     <div ref="mapContainer" class="absolute inset-0"></div>
 
-    <!-- Toggle button -->
-    <button
-      @click="controlsOpen = !controlsOpen"
-      class="absolute top-4 right-4 z-[1000] bg-white rounded-xl shadow-lg p-2.5 hover:bg-slate-50 transition-colors"
-      :class="{ 'right-[220px]': controlsOpen }"
-    >
-      <svg class="w-5 h-5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" />
-      </svg>
-    </button>
-
-    <!-- Controls panel -->
-    <div
-      v-show="controlsOpen"
-      class="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 space-y-4 w-52"
-    >
-      <!-- Dark mode toggle -->
+    <!-- Controls -->
+    <div class="absolute top-3 right-3 z-[1000] bg-white border border-[#e5e7eb] rounded-lg p-3 w-[180px] text-[12px] space-y-3">
       <div class="flex items-center justify-between">
-        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Theme</span>
-        <button @click="toggleDarkMode" class="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors" :class="darkMode ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'">
-          {{ darkMode ? 'Dark' : 'Light' }}
-        </button>
+        <span class="label">Theme</span>
+        <button @click="toggleDarkMode" class="btn btn-sm" :class="darkMode?'btn-primary':'btn-secondary'">{{ darkMode?'Dark':'Light' }}</button>
       </div>
-
-      <div class="border-t border-slate-100 pt-3">
-        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Transport</div>
-        <div class="space-y-1.5">
-          <label v-for="(val, key) in { districts: layers.districts, mtr: layers.mtr, bus: layers.bus, tram: layers.tram, lightRail: layers.lightRail, ferry: layers.ferry }" :key="key" class="flex items-center gap-2.5 cursor-pointer py-0.5">
-            <input type="checkbox" :checked="val" @change="toggleLayer(key as any)" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" />
-            <span class="text-xs text-slate-600">
-              {{ key === "mtr" ? "MTR" : key === "bus" ? "Bus Stops" : key === "lightRail" ? "Light Rail" : key === "ferry" ? "Ferry" : key === "tram" ? "Tram & Peak" : "Districts" }}
-            </span>
+      <div class="border-t border-[#e5e7eb] pt-2">
+        <div class="label mb-1.5">Layers</div>
+        <div class="space-y-1">
+          <label v-for="(val, key) in { districts:layers.districts, mtr:layers.mtr, bus:layers.bus, tram:layers.tram, lightRail:layers.lightRail, ferry:layers.ferry, schools:layers.schools, hospitals:layers.hospitals }" :key="key" class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" :checked="val" @change="toggleLayer(key as any)" class="rounded border-[#d1d5db] w-3 h-3" />
+            <span class="text-[#374151]">{{ {districts:'Districts',mtr:'MTR',bus:'Bus',tram:'Tram',lightRail:'Light Rail',ferry:'Ferry',schools:'Schools',hospitals:'Hospitals'}[key] }}</span>
           </label>
         </div>
       </div>
-
-      <div class="border-t border-slate-100 pt-3">
-        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Amenities</div>
-        <div class="space-y-1.5">
-          <label class="flex items-center gap-2.5 cursor-pointer py-0.5">
-            <input type="checkbox" :checked="layers.schools" @change="toggleLayer('schools')" class="rounded border-slate-300 text-orange-500 focus:ring-orange-400 w-3.5 h-3.5" />
-            <span class="text-xs text-slate-600">Schools</span>
-          </label>
-          <label class="flex items-center gap-2.5 cursor-pointer py-0.5">
-            <input type="checkbox" :checked="layers.hospitals" @change="toggleLayer('hospitals')" class="rounded border-slate-300 text-rose-500 focus:ring-rose-400 w-3.5 h-3.5" />
-            <span class="text-xs text-slate-600">Hospitals</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="border-t border-slate-100 pt-3">
-        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Heatmap</div>
-        <select v-model="heatmapMetric" class="select text-xs py-1.5">
-          <option value="none">Off (zone colors)</option>
-          <option value="stock">Domestic Units</option>
-          <option value="office">Office Units</option>
-          <option value="vacancy">Vacancy Rate</option>
-          <option value="price">Avg Price/sqft</option>
+      <div class="border-t border-[#e5e7eb] pt-2">
+        <div class="label mb-1.5">Heatmap</div>
+        <select v-model="heatmapMetric" class="select text-[11px]">
+          <option value="none">Off</option>
+          <option value="stock">Domestic</option>
+          <option value="office">Office</option>
+          <option value="vacancy">Vacancy</option>
+          <option value="price">Price/sqft</option>
         </select>
       </div>
     </div>
 
     <!-- Legend -->
-    <div class="absolute bottom-6 left-4 z-[1000] bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 text-xs space-y-1.5">
-      <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Legend</div>
-      <template v-if="heatmapMetric === 'none'">
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-500"></span> HK Island</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500"></span> Kowloon</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> New Territories</div>
+    <div class="absolute bottom-3 left-3 z-[1000] bg-white border border-[#e5e7eb] rounded-lg p-3 text-[11px] space-y-1">
+      <template v-if="heatmapMetric==='none'">
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#2563eb]"></span> HK Island</div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#dc2626]"></span> Kowloon</div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#059669]"></span> N.T.</div>
       </template>
       <template v-else>
-        <div class="flex items-center gap-2"><span class="w-10 h-3 rounded" style="background: linear-gradient(to right, #fef3c7, #f59e0b, #dc2626)"></span> Low - High</div>
+        <div class="flex items-center gap-1.5"><span class="w-8 h-2 rounded" style="background:linear-gradient(to right,#fef3c7,#f59e0b,#dc2626)"></span> Low-High</div>
       </template>
-      <div class="border-t border-slate-100 mt-2 pt-2 space-y-1">
-        <div class="flex items-center gap-2"><span class="w-3 h-0.5 bg-emerald-600"></span> Tram</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-0.5 bg-red-500"></span> Peak Tram</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400 border border-amber-500" style="width:8px;height:8px"></span> KMB</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500" style="width:8px;height:8px"></span> CityBus</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-violet-500" style="width:8px;height:8px"></span> GMB</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500" style="width:8px;height:8px"></span> Light Rail</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400" style="width:8px;height:8px"></span> Ferry</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-400" style="width:8px;height:8px"></span> Schools</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500" style="width:8px;height:8px"></span> Hospitals</div>
-      </div>
     </div>
   </div>
 </template>

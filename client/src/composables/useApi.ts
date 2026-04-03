@@ -72,6 +72,8 @@ export function useApi() {
     getTransportSummary: () => apiFetch<any>(`${BASE_URL}/transport/summary`),
     getRouteDetail: (operator: string, route: string) =>
       apiFetch<any[]>(`${BASE_URL}/transport/route/${operator}/${route}`),
+    getRouteStops: (operator: string, route: string, direction: string) =>
+      apiFetch<any[]>(`${BASE_URL}/transport/route-stops/${operator}/${route}/${direction}`),
 
     // Population
     getPopulation: () => apiFetch<any>(`${BASE_URL}/population`),

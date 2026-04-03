@@ -174,4 +174,56 @@ export const transportPlugin = new Elysia({ prefix: "/api/transport" })
     return routes;
   }, {
     params: t.Object({ operator: t.String(), route: t.String() }),
+  })
+  .get("/route-stops/:operator/:route/:direction", async ({ params }) => {
+    // Fetch live route-stop data from operator APIs
+    const { operator, route, direction } = params;
+    const sqlite = (db as any).$client;
+
+    try {
+      if (operator === "kmb") {
+        // KMB: fetch route-stop mapping, then look up each stop
+        const rsRes = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${route}/${direction}/1`);
+        const rsJson = await rsRes.json() as any;
+        const routeStops = rsJson.data || [];
+
+        const stops = [];
+        for (const rs of routeStops) {
+          const dbStop = sqlite.query("SELECT * FROM bus_stops WHERE id = ?").get(rs.stop);
+          if (dbStop) {
+            stops.push({ ...dbStop, seq: rs.seq });
+          } else {
+            // Fetch from API if not in DB
+            try {
+              const sRes = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop/${rs.stop}`);
+              const sJson = await sRes.json() as any;
+              const s = sJson.data;
+              if (s) stops.push({ id: s.stop, name_en: s.name_en, name_zh: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long), seq: rs.seq, operator: "kmb" });
+            } catch {}
+          }
+        }
+        return stops.sort((a: any, b: any) => (a.seq || 0) - (b.seq || 0));
+      }
+
+      if (operator === "ctb") {
+        const rsRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/route-stop/ctb/${route}/${direction === "outbound" ? "outbound" : "inbound"}`);
+        const rsJson = await rsRes.json() as any;
+        const routeStops = rsJson.data || [];
+
+        const stops = [];
+        for (const rs of routeStops) {
+          const dbStop = sqlite.query("SELECT * FROM bus_stops WHERE id = ?").get(`ctb-${rs.stop}`);
+          if (dbStop) {
+            stops.push({ ...dbStop, seq: rs.seq });
+          }
+        }
+        return stops.sort((a: any, b: any) => (a.seq || 0) - (b.seq || 0));
+      }
+
+      return [];
+    } catch (err: any) {
+      return { error: err.message, stops: [] };
+    }
+  }, {
+    params: t.Object({ operator: t.String(), route: t.String(), direction: t.String() }),
   });

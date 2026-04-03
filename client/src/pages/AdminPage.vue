@@ -4,300 +4,92 @@ import { useApi } from "@/composables/useApi";
 
 const api = useApi();
 const status = ref<any>(null);
-const transportSummary = ref<any>(null);
+const transport = ref<any>(null);
 const scraping = ref(false);
 const ingesting = ref(false);
+const ingestingPop = ref(false);
+const ingestingAmen = ref(false);
 const scrapeResult = ref<any>(null);
 const ingestResult = ref<any>(null);
-const scrapeType = ref("buy");
-const ingestingPop = ref(false);
-const ingestingAmenities = ref(false);
 const popResult = ref<any>(null);
-const amenitiesResult = ref<any>(null);
+const amenResult = ref<any>(null);
+const scrapeType = ref("buy");
 const logs = ref<string[]>([]);
 
-onMounted(refreshStatus);
+onMounted(refresh);
 
-async function refreshStatus() {
-  const [s, t] = await Promise.all([
-    api.getScraperStatus(),
-    api.getTransportSummary(),
-  ]);
-  status.value = s;
-  transportSummary.value = t;
+async function refresh() {
+  [status.value, transport.value] = await Promise.all([api.getScraperStatus(), api.getTransportSummary()]);
 }
 
-async function runScraper() {
-  scraping.value = true;
-  scrapeResult.value = null;
-  addLog(`Starting ${scrapeType.value} scrape...`);
-  try {
-    scrapeResult.value = await api.runScraper(scrapeType.value);
-    addLog(`Scrape complete: ${scrapeResult.value.count || 0} listings scraped`);
-    await refreshStatus();
-  } catch (err: any) {
-    addLog(`Scrape error: ${err.message}`);
-    scrapeResult.value = { error: err.message };
-  } finally {
-    scraping.value = false;
-  }
-}
+function log(msg: string) { logs.value.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`); if (logs.value.length > 50) logs.value.pop(); }
 
-async function runIngestion() {
-  ingesting.value = true;
-  ingestResult.value = null;
-  addLog("Starting transport data ingestion...");
-  try {
-    ingestResult.value = await api.ingestTransport();
-    addLog("Transport ingestion complete!");
-    await refreshStatus();
-  } catch (err: any) {
-    addLog(`Ingestion error: ${err.message}`);
-    ingestResult.value = { error: err.message };
-  } finally {
-    ingesting.value = false;
-  }
-}
+async function runScrape() { scraping.value = true; scrapeResult.value = null; log(`Scraping ${scrapeType.value}...`); try { scrapeResult.value = await api.runScraper(scrapeType.value); log(`Done: ${scrapeResult.value.count||0} listings`); await refresh(); } catch (e: any) { log(`Error: ${e.message}`); scrapeResult.value = { error: e.message }; } finally { scraping.value = false; } }
+async function runIngest() { ingesting.value = true; ingestResult.value = null; log("Ingesting transport..."); try { ingestResult.value = await api.ingestTransport(); log("Transport done!"); await refresh(); } catch (e: any) { log(`Error: ${e.message}`); ingestResult.value = { error: e.message }; } finally { ingesting.value = false; } }
+async function runPop() { ingestingPop.value = true; popResult.value = null; log("Loading population..."); try { popResult.value = await api.ingestPopulation(); log("Population done!"); await refresh(); } catch (e: any) { log(`Error: ${e.message}`); popResult.value = { error: e.message }; } finally { ingestingPop.value = false; } }
+async function runAmen() { ingestingAmen.value = true; amenResult.value = null; log("Loading schools & hospitals..."); try { amenResult.value = await api.ingestAmenities(); log("Amenities done!"); await refresh(); } catch (e: any) { log(`Error: ${e.message}`); amenResult.value = { error: e.message }; } finally { ingestingAmen.value = false; } }
 
-async function runPopulationIngest() {
-  ingestingPop.value = true;
-  popResult.value = null;
-  addLog("Loading population data...");
-  try {
-    popResult.value = await api.ingestPopulation();
-    addLog("Population data loaded!");
-    await refreshStatus();
-  } catch (err: any) {
-    addLog(`Population error: ${err.message}`);
-    popResult.value = { error: err.message };
-  } finally {
-    ingestingPop.value = false;
-  }
-}
-
-async function runAmenitiesIngest() {
-  ingestingAmenities.value = true;
-  amenitiesResult.value = null;
-  addLog("Loading schools & hospitals...");
-  try {
-    amenitiesResult.value = await api.ingestAmenities();
-    addLog("Schools & hospitals loaded!");
-    await refreshStatus();
-  } catch (err: any) {
-    addLog(`Amenities error: ${err.message}`);
-    amenitiesResult.value = { error: err.message };
-  } finally {
-    ingestingAmenities.value = false;
-  }
-}
-
-function addLog(msg: string) {
-  const time = new Date().toLocaleTimeString();
-  logs.value.unshift(`[${time}] ${msg}`);
-  if (logs.value.length > 50) logs.value.pop();
-}
-
-const dataCounts = computed(() => {
+const counts = computed(() => {
   if (!status.value?.counts) return [];
   const c = status.value.counts;
-  return [
-    { label: "Properties", value: c.properties || 0, icon: "home" },
-    { label: "MTR Stations", value: c.mtr_stations || 0, icon: "train" },
-    { label: "Bus Stops", value: c.bus_stops || 0, icon: "bus" },
-    { label: "Tram Stops", value: c.tram_stops || 0, icon: "tram" },
-    { label: "Light Rail", value: c.light_rail_stops || 0, icon: "rail" },
-    { label: "Ferry Piers", value: c.ferry_piers || 0, icon: "ferry" },
-  ];
+  return [{ l: "Properties", v: c.properties }, { l: "MTR", v: c.mtr_stations }, { l: "Bus", v: c.bus_stops }, { l: "Tram", v: c.tram_stops }, { l: "LRT", v: c.light_rail_stops }, { l: "Ferry", v: c.ferry_piers }, { l: "Schools", v: c.schools }, { l: "Hospitals", v: c.hospitals }, { l: "Population", v: c.population_records }];
 });
-
-const busBreakdown = computed(() => {
-  return status.value?.counts?.bus_by_operator || [];
-});
+const busOps = computed(() => status.value?.counts?.bus_by_operator || []);
 </script>
 
 <template>
-  <div class="p-6 max-w-screen-xl mx-auto space-y-6">
-    <!-- Header -->
-    <div>
-      <h1 class="page-title">Data Manager</h1>
-      <p class="text-sm text-slate-500 mt-1">Manage data ingestion and scraping</p>
+  <div class="p-6 max-w-[1100px]">
+    <h1 class="page-title mb-5">Data Manager</h1>
+
+    <!-- Counts -->
+    <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 mb-5">
+      <div v-for="c in counts" :key="c.l" class="card text-center"><div class="text-[10px] text-[#9ca3af]">{{ c.l }}</div><div class="text-[16px] font-semibold">{{ (c.v||0).toLocaleString() }}</div></div>
     </div>
 
-    <!-- Data Counts -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-      <div v-for="item in dataCounts" :key="item.label" class="stat-card text-center">
-        <div class="text-xs text-slate-400 mb-1">{{ item.label }}</div>
-        <div class="text-xl font-bold text-slate-800">{{ item.value.toLocaleString() }}</div>
-      </div>
-    </div>
-
-    <!-- Bus Operator Breakdown -->
-    <div v-if="busBreakdown.length" class="stat-card">
-      <h2 class="section-title mb-3">Bus Stops by Operator</h2>
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div v-for="op in busBreakdown" :key="op.operator" class="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
-          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" :style="{
-            backgroundColor: op.operator === 'kmb' ? '#f59e0b' : op.operator === 'ctb' ? '#3b82f6' : op.operator === 'gmb' ? '#8b5cf6' : op.operator === 'nlb' ? '#14b8a6' : '#f43f5e'
-          }">
-            {{ op.operator.slice(0, 3).toUpperCase() }}
-          </div>
-          <div>
-            <div class="text-sm font-semibold text-slate-800">{{ op.count?.toLocaleString() }}</div>
-            <div class="text-xs text-slate-400">{{ op.operator.toUpperCase() }}</div>
-          </div>
-        </div>
+    <!-- Bus operators -->
+    <div v-if="busOps.length" class="card mb-5">
+      <div class="section-title mb-2">Bus by Operator</div>
+      <div class="flex gap-3">
+        <div v-for="op in busOps" :key="op.operator" class="text-[12px]"><span class="font-medium text-[#374151]">{{ op.operator.toUpperCase() }}</span> <span class="text-[#9ca3af]">{{ op.count?.toLocaleString() }}</span></div>
       </div>
     </div>
 
     <!-- Actions -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Scraper -->
-      <div class="stat-card">
-        <h2 class="section-title mb-1">Property Scraper</h2>
-        <p class="text-xs text-slate-400 mb-4">Scrape property listings from 28Hse.com</p>
-
-        <div class="flex items-center gap-3 mb-4">
-          <select v-model="scrapeType" class="select w-32" :disabled="scraping">
-            <option value="buy">Buy</option>
-            <option value="rent">Rent</option>
-          </select>
-          <button @click="runScraper" :disabled="scraping" class="btn btn-primary" :class="{ 'opacity-50 cursor-not-allowed': scraping }">
-            <svg v-if="scraping" class="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-            {{ scraping ? 'Scraping...' : 'Run Scraper' }}
-          </button>
+    <div class="grid grid-cols-2 gap-4 mb-5">
+      <div class="card">
+        <div class="section-title mb-1">Property Scraper</div>
+        <div class="text-[11px] text-[#9ca3af] mb-3">Scrape listings from 28Hse.com</div>
+        <div class="flex gap-2">
+          <select v-model="scrapeType" class="select w-20" :disabled="scraping"><option value="buy">Buy</option><option value="rent">Rent</option></select>
+          <button @click="runScrape" :disabled="scraping" class="btn btn-primary" :class="{'opacity-50':scraping}">{{ scraping?'Running...':'Run' }}</button>
         </div>
-
-        <div v-if="scrapeResult" class="p-3 rounded-xl text-sm" :class="scrapeResult.error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'">
-          {{ scrapeResult.error || `Scraped ${scrapeResult.count || 0} listings` }}
-        </div>
-
-        <div v-if="status?.lastRun" class="mt-3 text-xs text-slate-400">
-          Last run: {{ new Date(status.lastRun).toLocaleString() }}
-        </div>
+        <div v-if="scrapeResult" class="mt-2 text-[12px] p-2 rounded-md" :class="scrapeResult.error?'bg-red-50 text-red-700':'bg-emerald-50 text-emerald-700'">{{ scrapeResult.error||`${scrapeResult.count||0} listings` }}</div>
       </div>
-
-      <!-- Transport Ingestion -->
-      <div class="stat-card">
-        <h2 class="section-title mb-1">Transport Data Ingestion</h2>
-        <p class="text-xs text-slate-400 mb-4">Fetch latest data from MTR, KMB, CityBus, GMB, NLB, Light Rail, Ferry</p>
-
-        <button @click="runIngestion" :disabled="ingesting" class="btn btn-primary" :class="{ 'opacity-50 cursor-not-allowed': ingesting }">
-          <svg v-if="ingesting" class="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-          {{ ingesting ? 'Ingesting...' : 'Refresh Transport Data' }}
-        </button>
-
-        <div v-if="ingestResult" class="mt-3 p-3 rounded-xl text-sm" :class="ingestResult.error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'">
-          {{ ingestResult.error || 'Transport data refreshed successfully!' }}
-        </div>
-
-        <div class="mt-3 text-xs text-slate-400">
-          This fetches from official DATA.GOV.HK and MTR open data APIs.
-          <br>KMB, CityBus, GMB, NLB stops and routes will be updated.
-        </div>
+      <div class="card">
+        <div class="section-title mb-1">Transport Data</div>
+        <div class="text-[11px] text-[#9ca3af] mb-3">MTR, KMB, CityBus, GMB, NLB, LRT, Ferry</div>
+        <button @click="runIngest" :disabled="ingesting" class="btn btn-primary" :class="{'opacity-50':ingesting}">{{ ingesting?'Running...':'Refresh' }}</button>
+        <div v-if="ingestResult" class="mt-2 text-[12px] p-2 rounded-md" :class="ingestResult.error?'bg-red-50 text-red-700':'bg-emerald-50 text-emerald-700'">{{ ingestResult.error||'Done!' }}</div>
+      </div>
+      <div class="card">
+        <div class="section-title mb-1">Population</div>
+        <div class="text-[11px] text-[#9ca3af] mb-3">2021 census + 2025 mid-year estimates</div>
+        <button @click="runPop" :disabled="ingestingPop" class="btn btn-primary" :class="{'opacity-50':ingestingPop}">{{ ingestingPop?'Loading...':'Load' }}</button>
+        <div v-if="popResult" class="mt-2 text-[12px] p-2 rounded-md" :class="popResult.error?'bg-red-50 text-red-700':'bg-emerald-50 text-emerald-700'">{{ popResult.error||'Done!' }}</div>
+      </div>
+      <div class="card">
+        <div class="section-title mb-1">Schools & Hospitals</div>
+        <div class="text-[11px] text-[#9ca3af] mb-3">EDB schools + HA hospitals/clinics</div>
+        <button @click="runAmen" :disabled="ingestingAmen" class="btn btn-primary" :class="{'opacity-50':ingestingAmen}">{{ ingestingAmen?'Loading...':'Load' }}</button>
+        <div v-if="amenResult" class="mt-2 text-[12px] p-2 rounded-md" :class="amenResult.error?'bg-red-50 text-red-700':'bg-emerald-50 text-emerald-700'">{{ amenResult.error||'Done!' }}</div>
       </div>
     </div>
 
-    <!-- Population & Amenities -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="stat-card">
-        <h2 class="section-title mb-1">Population Data</h2>
-        <p class="text-xs text-slate-400 mb-4">Load 2021 census + 2024 mid-year population estimates</p>
-        <button @click="runPopulationIngest" :disabled="ingestingPop" class="btn btn-primary" :class="{ 'opacity-50 cursor-not-allowed': ingestingPop }">
-          <svg v-if="ingestingPop" class="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-          {{ ingestingPop ? 'Loading...' : 'Load Population Data' }}
-        </button>
-        <div v-if="popResult" class="mt-3 p-3 rounded-xl text-sm" :class="popResult.error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'">
-          {{ popResult.error || 'Population data loaded!' }}
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <h2 class="section-title mb-1">Schools & Hospitals</h2>
-        <p class="text-xs text-slate-400 mb-4">Fetch from EDB (schools) and Hospital Authority (hospitals)</p>
-        <button @click="runAmenitiesIngest" :disabled="ingestingAmenities" class="btn btn-primary" :class="{ 'opacity-50 cursor-not-allowed': ingestingAmenities }">
-          <svg v-if="ingestingAmenities" class="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-          {{ ingestingAmenities ? 'Loading...' : 'Load Schools & Hospitals' }}
-        </button>
-        <div v-if="amenitiesResult" class="mt-3 p-3 rounded-xl text-sm" :class="amenitiesResult.error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'">
-          {{ amenitiesResult.error || 'Amenities data loaded!' }}
-        </div>
-      </div>
-    </div>
-
-    <!-- Activity Log -->
-    <div class="stat-card">
-      <h2 class="section-title mb-3">Activity Log</h2>
-      <div v-if="logs.length" class="bg-slate-900 rounded-xl p-4 font-mono text-xs text-slate-300 max-h-60 overflow-y-auto space-y-1">
-        <div v-for="(log, i) in logs" :key="i" class="leading-relaxed">{{ log }}</div>
-      </div>
-      <div v-else class="text-sm text-slate-400 text-center py-6">No recent activity</div>
-    </div>
-
-    <!-- Data Sources -->
-    <div class="stat-card">
-      <h2 class="section-title mb-3">Data Sources</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-        <div class="space-y-2">
-          <div class="flex items-start gap-2">
-            <span class="badge badge-green">Live</span>
-            <div>
-              <div class="font-medium text-slate-700">KMB Open Data</div>
-              <div class="text-xs text-slate-400">data.etabus.gov.hk - Stops, routes, route-stop mapping</div>
-            </div>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="badge badge-green">Live</span>
-            <div>
-              <div class="font-medium text-slate-700">CityBus / NWFB</div>
-              <div class="text-xs text-slate-400">rt.data.gov.hk - CityBus stops and routes</div>
-            </div>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="badge badge-green">Live</span>
-            <div>
-              <div class="font-medium text-slate-700">GMB Open Data</div>
-              <div class="text-xs text-slate-400">data.etagmb.gov.hk - Green Minibus routes and stops</div>
-            </div>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="badge badge-green">Live</span>
-            <div>
-              <div class="font-medium text-slate-700">MTR Open Data</div>
-              <div class="text-xs text-slate-400">opendata.mtr.com.hk - Lines, stations, MTR Bus</div>
-            </div>
-          </div>
-        </div>
-        <div class="space-y-2">
-          <div class="flex items-start gap-2">
-            <span class="badge badge-green">Live</span>
-            <div>
-              <div class="font-medium text-slate-700">NLB Open Data</div>
-              <div class="text-xs text-slate-400">rt.data.gov.hk - New Lantao Bus routes and stops</div>
-            </div>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="badge badge-blue">RVD</span>
-            <div>
-              <div class="font-medium text-slate-700">Rating & Valuation Dept</div>
-              <div class="text-xs text-slate-400">rvd.gov.hk - Price indices, building stock, age data</div>
-            </div>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="badge badge-amber">Scrape</span>
-            <div>
-              <div class="font-medium text-slate-700">28Hse.com</div>
-              <div class="text-xs text-slate-400">Property listings (buy & rent)</div>
-            </div>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="badge badge-slate">Static</span>
-            <div>
-              <div class="font-medium text-slate-700">Light Rail, Tram, Ferry</div>
-              <div class="text-xs text-slate-400">Static data from official sources</div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- Log -->
+    <div class="card">
+      <div class="section-title mb-2">Log</div>
+      <div v-if="logs.length" class="bg-[#111827] rounded-md p-3 font-mono text-[11px] text-[#d1d5db] max-h-48 overflow-y-auto space-y-0.5"><div v-for="(l,i) in logs" :key="i">{{ l }}</div></div>
+      <div v-else class="text-[12px] text-[#9ca3af] text-center py-6">No activity</div>
     </div>
   </div>
 </template>

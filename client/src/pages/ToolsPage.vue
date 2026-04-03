@@ -4,7 +4,7 @@ import { ref, computed, watch } from "vue";
 // === Mortgage Calculator ===
 const purchasePrice = ref(8000000);
 const downPaymentPct = ref(30);
-const interestRate = ref(3.625);
+const interestRate = ref(2.875);
 const loanTermYears = ref(30);
 
 const downPayment = computed(() => purchasePrice.value * (downPaymentPct.value / 100));
@@ -32,40 +32,27 @@ const netYield = computed(() => (((monthlyRent.value * 12) - annualCosts.value) 
 const paybackYears = computed(() => propValue.value / (monthlyRent.value * 12 - annualCosts.value));
 
 // === Stamp Duty Calculator ===
+// All cooling measures (BSD, SSD, NRSD) abolished Feb 28, 2024
+// Scale 2 AVD now applies universally to all buyers
+// 2025-26 Budget: properties >$100M face 6.5% (raised from 4.25%)
 const stampDutyPrice = ref(8000000);
-const isFirstHome = ref(true);
-const isHKPR = ref(true);
 
 const stampDuty = computed(() => {
-  const p = stampDutyPrice.value;
-  if (!isHKPR.value) {
-    // Non-HKPR: BSD 15% flat + AVD
-    return p * 0.15 + computeAVD(p, false);
-  }
-  if (!isFirstHome.value) {
-    // 2nd property: flat 15% new residential stamp duty
-    return p * 0.15;
-  }
-  return computeAVD(p, true);
+  return computeScale2(stampDutyPrice.value);
 });
 
-function computeAVD(price: number, scale2: boolean): number {
-  if (scale2) {
-    // Scale 2 (first-time HKPR buyers) - 2024 rates
-    if (price <= 3000000) return price * 0.015;
-    if (price <= 3528240) return price * 0.015 + (price - 3000000) * 0.005;
-    if (price <= 4500000) return price * 0.0225;
-    if (price <= 4935480) return price * 0.0225 + (price - 4500000) * 0.005;
-    if (price <= 6000000) return price * 0.03;
-    if (price <= 6642860) return price * 0.03 + (price - 6000000) * 0.005;
-    if (price <= 9000000) return price * 0.0375;
-    if (price <= 10080000) return price * 0.0375 + (price - 9000000) * 0.005;
-    if (price <= 20000000) return price * 0.0425;
-    if (price <= 21739120) return price * 0.0425 + (price - 20000000) * 0.005;
-    return price * 0.0475;
-  }
-  // Scale 1 (non-first-time)
-  return price * 0.15;
+function computeScale2(price: number): number {
+  // AVD Scale 2 rates (post Feb 2025 budget - $4M threshold)
+  if (price <= 4000000) return price * 0.015;
+  if (price <= 4428570) return price * 0.015 + (price - 4000000) * 0.005;
+  if (price <= 6000000) return price * 0.0225;
+  if (price <= 6642860) return price * 0.0225 + (price - 6000000) * 0.005;
+  if (price <= 9000000) return price * 0.03;
+  if (price <= 10080000) return price * 0.03 + (price - 9000000) * 0.005;
+  if (price <= 20000000) return price * 0.0375;
+  if (price <= 21739120) return price * 0.0375 + (price - 20000000) * 0.005;
+  if (price <= 100000000) return price * 0.0425;
+  return price * 0.065; // >$100M: 6.5% (2025-26 Budget)
 }
 
 const stampDutyPct = computed(() => ((stampDuty.value / stampDutyPrice.value) * 100).toFixed(2));
@@ -188,9 +175,9 @@ function formatHKD(n: number): string {
         </div>
 
         <div class="mt-3 text-xs text-slate-400">
-          HK average gross yield: 2.2-2.8% (Class A domestic).
-          <span :class="grossYield > 2.5 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'">
-            {{ grossYield > 2.5 ? 'Above average' : 'Below average' }}
+          HK average gross yield: 3.5-3.9% (2025, Class A domestic).
+          <span :class="grossYield > 3.5 ? 'text-emerald-600 font-medium' : 'text-rose-500 font-medium'">
+            {{ grossYield > 3.5 ? 'Above average' : 'Below average' }}
           </span>
         </div>
       </div>
@@ -210,15 +197,8 @@ function formatHKD(n: number): string {
             <input v-model.number="stampDutyPrice" type="range" min="1000000" max="100000000" step="100000" class="w-full accent-amber-600" />
             <div class="text-sm font-semibold text-slate-700">{{ formatHKD(stampDutyPrice) }}</div>
           </div>
-          <div class="flex gap-4">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input v-model="isHKPR" type="checkbox" class="rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
-              <span class="text-sm text-slate-600">HK Permanent Resident</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input v-model="isFirstHome" type="checkbox" class="rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
-              <span class="text-sm text-slate-600">First Home</span>
-            </label>
+          <div class="p-2.5 rounded-xl bg-emerald-50 text-xs text-emerald-700">
+            All cooling measures (BSD, SSD, NRSD) abolished Feb 2024. Scale 2 AVD applies to all buyers.
           </div>
         </div>
 
@@ -234,7 +214,7 @@ function formatHKD(n: number): string {
         </div>
 
         <div class="mt-2 text-xs text-slate-400">
-          {{ !isHKPR ? 'Non-HKPR: 15% BSD + AVD Scale 1' : !isFirstHome ? 'Non-first home: 15% flat rate' : 'First-time HKPR buyer: AVD Scale 2 rates' }}
+          AVD Scale 2 rates. Properties &gt;HK$100M: 6.5% (2025-26 Budget).
         </div>
       </div>
 
@@ -249,15 +229,19 @@ function formatHKD(n: number): string {
 
         <div class="space-y-3 text-sm">
           <div class="p-3 rounded-xl bg-slate-50">
-            <div class="font-medium text-slate-700 mb-1">HK Mortgage Stress Test</div>
-            <div class="text-xs text-slate-500">Monthly repayment must not exceed 50% of income at current rate, and 60% at +2% rate (HKMA rule)</div>
+            <div class="font-medium text-slate-700 mb-1">Mortgage Rates (2025-26)</div>
+            <div class="text-xs text-slate-500 space-y-0.5">
+              <div>P-Plan: ~2.75-3.0% (Prime minus 2.5%)</div>
+              <div>H-Plan: ~4.6% (HIBOR + 1.3%)</div>
+              <div>HKMA stress test suspended since Feb 2024</div>
+            </div>
           </div>
           <div class="p-3 rounded-xl bg-slate-50">
-            <div class="font-medium text-slate-700 mb-1">Max LTV Ratios (2024)</div>
+            <div class="font-medium text-slate-700 mb-1">Max LTV Ratios (2025)</div>
             <div class="text-xs text-slate-500 space-y-0.5">
-              <div>Property &le; HK$30M: Max 70% LTV</div>
+              <div>Standard: 70% LTV for all properties</div>
               <div>Self-use &le; HK$10M: Up to 90% with HKMC insurance</div>
-              <div>Non-self-use: Max 50% LTV</div>
+              <div>Self-use HK$10M-15M: Up to 80% with MIP</div>
             </div>
           </div>
           <div class="p-3 rounded-xl bg-slate-50">
@@ -265,7 +249,7 @@ function formatHKD(n: number): string {
             <div class="text-xs text-slate-500 space-y-0.5">
               <div>Agent commission: 1% (buyer + seller)</div>
               <div>Legal fees: HK$10,000 - 30,000</div>
-              <div>Stamp duty: Scale 2 for first-time HKPR buyers</div>
+              <div>Stamp duty: AVD Scale 2 (all buyers, cooling measures abolished)</div>
             </div>
           </div>
         </div>

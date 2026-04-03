@@ -9,10 +9,12 @@ const scraping = ref(false);
 const ingesting = ref(false);
 const ingestingPop = ref(false);
 const ingestingAmen = ref(false);
+const ingestingRvd = ref(false);
 const scrapeResult = ref<any>(null);
 const ingestResult = ref<any>(null);
 const popResult = ref<any>(null);
 const amenResult = ref<any>(null);
+const rvdResult = ref<any>(null);
 const scrapeType = ref("buy");
 const logs = ref<string[]>([]);
 
@@ -28,6 +30,7 @@ async function runScrape() { scraping.value = true; scrapeResult.value = null; l
 async function runIngest() { ingesting.value = true; ingestResult.value = null; log("Ingesting transport..."); try { ingestResult.value = await api.ingestTransport(); log("Transport done!"); await refresh(); } catch (e: any) { log(`Error: ${e.message}`); ingestResult.value = { error: e.message }; } finally { ingesting.value = false; } }
 async function runPop() { ingestingPop.value = true; popResult.value = null; log("Loading population..."); try { popResult.value = await api.ingestPopulation(); log("Population done!"); await refresh(); } catch (e: any) { log(`Error: ${e.message}`); popResult.value = { error: e.message }; } finally { ingestingPop.value = false; } }
 async function runAmen() { ingestingAmen.value = true; amenResult.value = null; log("Loading schools & hospitals..."); try { amenResult.value = await api.ingestAmenities(); log("Amenities done!"); await refresh(); } catch (e: any) { log(`Error: ${e.message}`); amenResult.value = { error: e.message }; } finally { ingestingAmen.value = false; } }
+async function runRvd() { ingestingRvd.value = true; rvdResult.value = null; log("Loading RVD data..."); try { rvdResult.value = await api.ingestRvd(); log("RVD done!"); await refresh(); } catch (e: any) { log(`Error: ${e.message}`); rvdResult.value = { error: e.message }; } finally { ingestingRvd.value = false; } }
 
 const counts = computed(() => {
   if (!status.value?.counts) return [];
@@ -55,7 +58,7 @@ const busOps = computed(() => status.value?.counts?.bus_by_operator || []);
     </div>
 
     <!-- Actions -->
-    <div class="grid grid-cols-2 gap-4 mb-5">
+    <div class="grid grid-cols-3 gap-3 mb-5">
       <div class="card">
         <div class="section-title mb-1">Property Scraper</div>
         <div class="text-[11px] text-[#9ca3af] mb-3">Scrape listings from 28Hse.com</div>
@@ -82,6 +85,12 @@ const busOps = computed(() => status.value?.counts?.bus_by_operator || []);
         <div class="text-[11px] text-[#9ca3af] mb-3">EDB schools + HA hospitals/clinics</div>
         <button @click="runAmen" :disabled="ingestingAmen" class="btn btn-primary" :class="{'opacity-50':ingestingAmen}">{{ ingestingAmen?'Loading...':'Load' }}</button>
         <div v-if="amenResult" class="mt-2 text-[12px] p-2 rounded-md" :class="amenResult.error?'bg-red-50 text-red-700':'bg-emerald-50 text-emerald-700'">{{ amenResult.error||'Done!' }}</div>
+      </div>
+      <div class="card">
+        <div class="section-title mb-1">RVD Data</div>
+        <div class="text-[11px] text-[#9ca3af] mb-3">Price indices, building stock & age</div>
+        <button @click="runRvd" :disabled="ingestingRvd" class="btn btn-primary" :class="{'opacity-50':ingestingRvd}">{{ ingestingRvd?'Loading...':'Load' }}</button>
+        <div v-if="rvdResult" class="mt-2 text-[12px] p-2 rounded-md" :class="rvdResult.error?'bg-red-50 text-red-700':'bg-emerald-50 text-emerald-700'">{{ rvdResult.error||'Done!' }}</div>
       </div>
     </div>
 

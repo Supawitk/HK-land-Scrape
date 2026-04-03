@@ -43,9 +43,9 @@ const heatmapData = ref<any[]>([]);
 const controlsOpen = ref(true);
 
 const ZONE_COLORS: Record<string, string> = {
-  hk_island: "#6366f1",
-  kowloon: "#f43f5e",
-  new_territories: "#10b981",
+  hk_island: "#2563eb",
+  kowloon: "#dc2626",
+  new_territories: "#059669",
 };
 
 const districtZoneMap: Record<string, string> = {

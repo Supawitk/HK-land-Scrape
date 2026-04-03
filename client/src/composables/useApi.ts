@@ -108,5 +108,6 @@ export function useApi() {
     ingestTransport: () => apiPost<any>("/scraper/ingest/transport"),
     ingestPopulation: () => apiPost<any>("/scraper/ingest/population"),
     ingestAmenities: () => apiPost<any>("/scraper/ingest/amenities"),
+    ingestRvd: () => apiPost<any>("/scraper/ingest/rvd"),
   };
 }

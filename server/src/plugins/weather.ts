@@ -27,14 +27,16 @@ function parseAqhiXml(xml: string): any[] {
   while ((match = itemRegex.exec(xml)) !== null) {
     const item = match[1];
     const title = item.match(/<title>(.*?)<\/title>/)?.[1] || "";
-    const desc = item.match(/<description>(.*?)<\/description>/)?.[1] || "";
+    const desc = (item.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "").replace(/<!\[CDATA\[/g, "").replace(/\]\]>/g, "").trim();
     const pubDate = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || "";
 
     // Parse description: "Central/Western - General Stations: 3 Low - Sat, 04 Apr 2026 04:30"
-    const descMatch = desc.match(/^(.+?)\s*-\s*(General|Roadside)\s+Stations?:\s*(\d+)\s+(\w+)/);
+    // Strip CDATA wrappers
+    const cleanDesc = desc.replace(/<!\[CDATA\[/g, "").replace(/\]\]>/g, "").trim();
+    const descMatch = cleanDesc.match(/^(.+?)\s*-\s*(General|Roadside)\s+Stations?:\s*(\d+)\s+(\w+)/);
     if (descMatch) {
       stations.push({
-        station: descMatch[1].trim(),
+        station: descMatch[1].trim().replace(/<!\[CDATA\[/g, ""),
         type: descMatch[2].toLowerCase(),
         aqhi: parseInt(descMatch[3]),
         riskLevel: descMatch[4],

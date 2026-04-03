@@ -12,6 +12,7 @@ import { ingestPeakTram, ingestFerryPiers } from "../ingest/peak-tram";
 import { ingestPopulation } from "../ingest/population";
 import { ingestSchools } from "../ingest/schools";
 import { ingestHospitals } from "../ingest/hospitals";
+import { ingestRvdPrices, ingestRvdStock, ingestRvdAge } from "../ingest/rvd";
 
 let scrapeStatus = { running: false, lastRun: null as string | null, lastCount: 0 };
 
@@ -100,6 +101,16 @@ export const scraperPlugin = new Elysia({ prefix: "/api/scraper" })
     try {
       await ingestSchools();
       await ingestHospitals();
+      return { success: true };
+    } catch (err: any) {
+      return { error: err.message };
+    }
+  })
+  .post("/ingest/rvd", async () => {
+    try {
+      await ingestRvdPrices();
+      await ingestRvdStock();
+      await ingestRvdAge();
       return { success: true };
     } catch (err: any) {
       return { error: err.message };

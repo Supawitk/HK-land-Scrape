@@ -40,6 +40,7 @@ const layers = ref({
 
 const heatmapMetric = ref("none");
 const heatmapData = ref<any[]>([]);
+const districtClickable = ref(true);
 const controlsOpen = ref(true);
 
 const ZONE_COLORS: Record<string, string> = {
@@ -139,7 +140,7 @@ async function initMap() {
       const nameZh = feature.properties["地區"];
       const district = districtsStore.getDistrictById(code);
 
-      layer.on("click", () => router.push(`/district/${code}`));
+      layer.on("click", () => { if (districtClickable.value) router.push(`/district/${code}`); });
       layer.on("mouseover", (e: any) => {
         const val = getHeatmapValue(code);
         let tooltip = `<div style="font-family:Inter,system-ui,sans-serif"><strong>${name}</strong> <span style="color:#94a3b8">${nameZh}</span>`;
@@ -328,6 +329,10 @@ onMounted(initMap);
       <div class="flex items-center justify-between">
         <span class="label">Theme</span>
         <button @click="toggleDarkMode" class="btn btn-sm" :class="darkMode?'btn-primary':'btn-secondary'">{{ darkMode?'Dark':'Light' }}</button>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="label">District Click</span>
+        <button @click="districtClickable=!districtClickable" class="btn btn-sm" :class="districtClickable?'btn-primary':'btn-secondary'">{{ districtClickable?'On':'Off' }}</button>
       </div>
       <div class="border-t border-[#e5e7eb] pt-2">
         <div class="label mb-1.5">Layers</div>

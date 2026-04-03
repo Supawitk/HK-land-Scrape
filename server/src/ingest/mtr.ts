@@ -11,11 +11,11 @@ const STATION_COORDS: Record<string, { lat: number; lng: number; districtId: str
   AIR: { lat: 22.3160, lng: 113.9365, districtId: "T" },
   AWE: { lat: 22.3220, lng: 113.9426, districtId: "T" },
   // Island Line
-  KET: { lat: 22.2814, lng: 114.1107, districtId: "A" },
-  HKU: { lat: 22.2840, lng: 114.1347, districtId: "A" },
+  KET: { lat: 22.2813, lng: 114.1156, districtId: "A" },
+  HKU: { lat: 22.2840, lng: 114.1350, districtId: "A" },
   SYP: { lat: 22.2854, lng: 114.1425, districtId: "A" },
   SHW: { lat: 22.2866, lng: 114.1516, districtId: "A" },
-  CEN: { lat: 22.2819, lng: 114.1580, districtId: "A" },
+  CEN: { lat: 22.2819, lng: 114.1588, districtId: "A" },
   ADM: { lat: 22.2791, lng: 114.1654, districtId: "A" },
   WAC: { lat: 22.2776, lng: 114.1732, districtId: "B" },
   CAB: { lat: 22.2798, lng: 114.1841, districtId: "B" },
@@ -66,10 +66,10 @@ const STATION_COORDS: Record<string, { lat: number; lng: number; districtId: str
   TKO: { lat: 22.3047, lng: 114.2600, districtId: "Q" },
   LHP: { lat: 22.2956, lng: 114.2688, districtId: "Q" },
   // South Island Line
-  OCP: { lat: 22.2479, lng: 114.1692, districtId: "D" },
-  WCH: { lat: 22.2474, lng: 114.1740, districtId: "D" },
+  OCP: { lat: 22.2479, lng: 114.1698, districtId: "D" },
+  WCH: { lat: 22.2474, lng: 114.1737, districtId: "D" },
   LET: { lat: 22.2425, lng: 114.1561, districtId: "D" },
-  SOH: { lat: 22.2485, lng: 114.1746, districtId: "D" },
+  SOH: { lat: 22.2486, lng: 114.1602, districtId: "D" },
   // East Rail Line
   HUH: { lat: 22.3026, lng: 114.1822, districtId: "G" },
   MKK: { lat: 22.3073, lng: 114.1800, districtId: "G" },

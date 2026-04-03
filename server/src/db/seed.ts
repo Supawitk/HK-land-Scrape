@@ -95,11 +95,21 @@ async function seed() {
     CREATE INDEX IF NOT EXISTS idx_building_stock_district ON building_stock(district_id);
     CREATE INDEX IF NOT EXISTS idx_building_stock_type ON building_stock(property_type);
     CREATE TABLE IF NOT EXISTS building_age (id INTEGER PRIMARY KEY AUTOINCREMENT, year INTEGER NOT NULL, category TEXT NOT NULL, pre_1960 REAL, y1960_69 REAL, y1970_79 REAL, y1980_89 REAL, y1990_99 REAL, y2000_09 REAL, post_2009 REAL, total_units INTEGER);
+    CREATE TABLE IF NOT EXISTS light_rail_stops (id TEXT PRIMARY KEY, name_en TEXT NOT NULL, name_zh TEXT, lat REAL NOT NULL, lng REAL NOT NULL, district_id TEXT REFERENCES districts(id));
+    CREATE TABLE IF NOT EXISTS ferry_piers (id TEXT PRIMARY KEY, name_en TEXT NOT NULL, name_zh TEXT, lat REAL NOT NULL, lng REAL NOT NULL, district_id TEXT REFERENCES districts(id), operator TEXT);
+    CREATE TABLE IF NOT EXISTS schools (id INTEGER PRIMARY KEY, name_en TEXT NOT NULL, name_zh TEXT, level TEXT, category TEXT, district TEXT, district_id TEXT REFERENCES districts(id), address TEXT, lat REAL, lng REAL, session TEXT, gender TEXT, religion TEXT);
+    CREATE INDEX IF NOT EXISTS idx_schools_district ON schools(district_id);
+    CREATE INDEX IF NOT EXISTS idx_schools_lat_lng ON schools(lat, lng);
+    CREATE INDEX IF NOT EXISTS idx_schools_level ON schools(level);
+    CREATE TABLE IF NOT EXISTS hospitals (id INTEGER PRIMARY KEY AUTOINCREMENT, name_en TEXT NOT NULL, name_zh TEXT, cluster TEXT, address TEXT, lat REAL NOT NULL, lng REAL NOT NULL, has_ae INTEGER, district_id TEXT REFERENCES districts(id));
+    CREATE INDEX IF NOT EXISTS idx_hospitals_lat_lng ON hospitals(lat, lng);
+    CREATE INDEX IF NOT EXISTS idx_hospitals_district ON hospitals(district_id);
   `);
 
   // Seed zones
+  const insertZone = sqlite.prepare("INSERT OR REPLACE INTO zones (id, name_en, name_zh) VALUES (?, ?, ?)");
   for (const zone of ZONES) {
-    sqlite.exec(`INSERT OR REPLACE INTO zones (id, name_en, name_zh) VALUES ('${zone.id}', '${zone.nameEn}', '${zone.nameZh}')`);
+    insertZone.run(zone.id, zone.nameEn, zone.nameZh);
   }
   console.log(`  Seeded ${ZONES.length} zones`);
 
@@ -119,9 +129,10 @@ async function seed() {
   }
 
   // Seed districts (no mock population or area - area comes from GeoJSON)
+  const insertDistrict = sqlite.prepare("INSERT OR REPLACE INTO districts (id, zone_id, name_en, name_zh, centroid_lat, centroid_lng, area_km_sq) VALUES (?, ?, ?, ?, ?, ?, ?)");
   for (const d of DISTRICTS) {
     const area = areaMap[d.id] || null;
-    sqlite.exec(`INSERT OR REPLACE INTO districts (id, zone_id, name_en, name_zh, centroid_lat, centroid_lng, area_km_sq) VALUES ('${d.id}', '${d.zoneId}', '${d.nameEn}', '${d.nameZh}', ${d.lat}, ${d.lng}, ${area ?? "NULL"})`);
+    insertDistrict.run(d.id, d.zoneId, d.nameEn, d.nameZh, d.lat, d.lng, area);
   }
   console.log(`  Seeded ${DISTRICTS.length} districts`);
 

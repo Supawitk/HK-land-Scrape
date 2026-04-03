@@ -97,6 +97,60 @@ export const tramStops = sqliteTable("tram_stops", {
   districtId: text("district_id").references(() => districts.id),
 });
 
+export const lightRailStops = sqliteTable("light_rail_stops", {
+  id: text("id").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameZh: text("name_zh"),
+  lat: real("lat").notNull(),
+  lng: real("lng").notNull(),
+  districtId: text("district_id").references(() => districts.id),
+});
+
+export const ferryPiers = sqliteTable("ferry_piers", {
+  id: text("id").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameZh: text("name_zh"),
+  lat: real("lat").notNull(),
+  lng: real("lng").notNull(),
+  districtId: text("district_id").references(() => districts.id),
+  operator: text("operator"),
+});
+
+export const schools = sqliteTable("schools", {
+  id: integer("id").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameZh: text("name_zh"),
+  level: text("level"),
+  category: text("category"),
+  district: text("district"),
+  districtId: text("district_id").references(() => districts.id),
+  address: text("address"),
+  lat: real("lat"),
+  lng: real("lng"),
+  session: text("session"),
+  gender: text("gender"),
+  religion: text("religion"),
+}, (table) => [
+  index("idx_schools_district").on(table.districtId),
+  index("idx_schools_lat_lng").on(table.lat, table.lng),
+  index("idx_schools_level").on(table.level),
+]);
+
+export const hospitals = sqliteTable("hospitals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nameEn: text("name_en").notNull(),
+  nameZh: text("name_zh"),
+  cluster: text("cluster"),
+  address: text("address"),
+  lat: real("lat").notNull(),
+  lng: real("lng").notNull(),
+  hasAE: integer("has_ae"),
+  districtId: text("district_id").references(() => districts.id),
+}, (table) => [
+  index("idx_hospitals_lat_lng").on(table.lat, table.lng),
+  index("idx_hospitals_district").on(table.districtId),
+]);
+
 export const populationData = sqliteTable("population_data", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   districtId: text("district_id").notNull().references(() => districts.id),

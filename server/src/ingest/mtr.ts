@@ -133,8 +133,11 @@ export async function ingestMtr() {
   const sqlite = (db as any).$client;
 
   // Insert lines
+  const insertLine = sqlite.prepare(
+    "INSERT OR REPLACE INTO mtr_lines (id, name_en, name_zh, color) VALUES (?, ?, ?, ?)"
+  );
   for (const line of MTR_LINES) {
-    sqlite.exec(`INSERT OR REPLACE INTO mtr_lines (id, name_en, name_zh, color) VALUES ('${line.id}', '${line.nameEn}', '${line.nameZh}', '${line.color}')`);
+    insertLine.run(line.id, line.nameEn, line.nameZh, line.color);
   }
   console.log(`  Inserted ${MTR_LINES.length} MTR lines`);
 
@@ -149,6 +152,13 @@ export async function ingestMtr() {
   // Clear old line-station data
   sqlite.exec("DELETE FROM mtr_line_stations");
 
+  const insertStation = sqlite.prepare(
+    "INSERT OR REPLACE INTO mtr_stations (id, name_en, name_zh, lat, lng, district_id) VALUES (?, ?, ?, ?, ?, ?)"
+  );
+  const insertLineStation = sqlite.prepare(
+    "INSERT INTO mtr_line_stations (line_id, station_id, sequence) VALUES (?, ?, ?)"
+  );
+
   for (const line of lines) {
     const parts = line.split(",").map((s) => s.replace(/"/g, "").trim());
     const [lineCode, direction, stationCode, _stationId, nameZh, nameEn, seq] = parts;
@@ -161,14 +171,12 @@ export async function ingestMtr() {
 
     // Insert station if not yet inserted
     if (!stationsInserted.has(stationCode)) {
-      const escapedNameEn = nameEn.replace(/'/g, "''");
-      const escapedNameZh = nameZh.replace(/'/g, "''");
-      sqlite.exec(`INSERT OR REPLACE INTO mtr_stations (id, name_en, name_zh, lat, lng, district_id) VALUES ('${stationCode}', '${escapedNameEn}', '${escapedNameZh}', ${coords.lat}, ${coords.lng}, '${coords.districtId}')`);
+      insertStation.run(stationCode, nameEn, nameZh, coords.lat, coords.lng, coords.districtId);
       stationsInserted.add(stationCode);
     }
 
     // Insert line-station relationship
-    sqlite.exec(`INSERT INTO mtr_line_stations (line_id, station_id, sequence) VALUES ('${lineCode}', '${stationCode}', ${parseInt(seq)})`);
+    insertLineStation.run(lineCode, stationCode, parseInt(seq));
     lineStationCount++;
   }
 

@@ -18,21 +18,26 @@ let districtLayer: L.GeoJSON;
 let mtrLayer: L.LayerGroup;
 let busLayer: L.LayerGroup;
 let tramLayer: L.LayerGroup;
+let lightRailLayer: L.LayerGroup;
+let ferryLayer: L.LayerGroup;
 
 const layers = ref({
   districts: true,
   mtr: true,
   bus: false,
   tram: true,
+  lightRail: false,
+  ferry: true,
 });
 
 const heatmapMetric = ref("none");
 const heatmapData = ref<any[]>([]);
+const controlsOpen = ref(true);
 
 const ZONE_COLORS: Record<string, string> = {
-  hk_island: "#3b82f6",
-  kowloon: "#ef4444",
-  new_territories: "#22c55e",
+  hk_island: "#6366f1",
+  kowloon: "#f43f5e",
+  new_territories: "#10b981",
 };
 
 const districtZoneMap: Record<string, string> = {
@@ -49,7 +54,6 @@ function getDistrictColor(id: string) {
 function getHeatColor(value: number, min: number, max: number): string {
   if (max === min) return "#fef3c7";
   const t = (value - min) / (max - min);
-  // Yellow to orange to red
   const r = 255;
   const g = Math.round(255 * (1 - t * 0.8));
   const b = Math.round(60 * (1 - t));
@@ -74,11 +78,8 @@ async function loadHeatmap() {
     updateDistrictStyles();
     return;
   }
-  const metricMap: Record<string, string> = {
-    stock: "stock", office: "stock", vacancy: "vacancy", price: "price",
-  };
-  const apiMetric = metricMap[heatmapMetric.value] || heatmapMetric.value;
-  heatmapData.value = await api.getHeatmap(apiMetric);
+  const metricMap: Record<string, string> = { stock: "stock", office: "stock", vacancy: "vacancy", price: "price" };
+  heatmapData.value = await api.getHeatmap(metricMap[heatmapMetric.value] || heatmapMetric.value);
   updateDistrictStyles();
 }
 
@@ -90,25 +91,16 @@ function updateDistrictStyles() {
 
     if (heatmapMetric.value === "none") {
       layer.setStyle({
-        color: getDistrictColor(code),
-        weight: 2,
-        fillColor: getDistrictColor(code),
-        fillOpacity: 0.15,
+        color: getDistrictColor(code), weight: 2,
+        fillColor: getDistrictColor(code), fillOpacity: 0.12,
       });
     } else {
       const val = getHeatmapValue(code);
-      const allVals = heatmapData.value
-        .map((d: any) => getHeatmapValue(d.id))
-        .filter((v): v is number => v !== null && v > 0);
+      const allVals = heatmapData.value.map((d: any) => getHeatmapValue(d.id)).filter((v): v is number => v !== null && v > 0);
       const min = Math.min(...allVals);
       const max = Math.max(...allVals);
       const color = val && val > 0 ? getHeatColor(val, min, max) : "#e5e7eb";
-      layer.setStyle({
-        color: "#666",
-        weight: 1.5,
-        fillColor: color,
-        fillOpacity: 0.6,
-      });
+      layer.setStyle({ color: "#666", weight: 1.5, fillColor: color, fillOpacity: 0.55 });
     }
   });
 }
@@ -119,9 +111,9 @@ async function initMap() {
   if (!mapContainer.value) return;
 
   map = L.map(mapContainer.value).setView([22.35, 114.15], 11);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 18,
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+    maxZoom: 19,
   }).addTo(map);
 
   // Load GeoJSON districts
@@ -131,12 +123,7 @@ async function initMap() {
   districtLayer = L.geoJSON(geojson, {
     style: (feature) => {
       const code = feature?.properties?.["地區號碼"] || "";
-      return {
-        color: getDistrictColor(code),
-        weight: 2,
-        fillColor: getDistrictColor(code),
-        fillOpacity: 0.15,
-      };
+      return { color: getDistrictColor(code), weight: 2, fillColor: getDistrictColor(code), fillOpacity: 0.12 };
     },
     onEachFeature: (feature, layer) => {
       const code = feature.properties["地區號碼"];
@@ -147,60 +134,48 @@ async function initMap() {
       layer.on("click", () => router.push(`/district/${code}`));
       layer.on("mouseover", (e: any) => {
         const val = getHeatmapValue(code);
-        let tooltip = `<strong>${name}</strong> (${nameZh})`;
-        if (district?.listing_count) tooltip += `<br>Listings: ${district.listing_count}`;
+        let tooltip = `<div style="font-family:Inter,system-ui,sans-serif"><strong>${name}</strong> <span style="color:#94a3b8">${nameZh}</span>`;
+        if (district?.listing_count) tooltip += `<br><span style="color:#6366f1">${district.listing_count} listings</span>`;
         if (val !== null && heatmapMetric.value !== "none") {
-          const label: Record<string, string> = {
-            stock: "Domestic Units", office: "Office Units",
-            vacancy: "Vacancy %", price: "Avg $/sqft",
-          };
-          tooltip += `<br>${label[heatmapMetric.value] || ""}: ${typeof val === 'number' ? val.toLocaleString() : val}`;
+          const label: Record<string, string> = { stock: "Domestic Units", office: "Office Units", vacancy: "Vacancy %", price: "Avg $/sqft" };
+          tooltip += `<br>${label[heatmapMetric.value]}: <strong>${typeof val === 'number' ? val.toLocaleString() : val}</strong>`;
         }
+        tooltip += "</div>";
         layer.bindPopup(tooltip).openPopup();
-        (layer as any).setStyle({ weight: 3, fillOpacity: heatmapMetric.value === "none" ? 0.4 : 0.75 });
+        (layer as any).setStyle({ weight: 3, fillOpacity: heatmapMetric.value === "none" ? 0.35 : 0.7 });
       });
-      layer.on("mouseout", () => {
-        updateDistrictStyles();
-        layer.closePopup();
-      });
+      layer.on("mouseout", () => { updateDistrictStyles(); layer.closePopup(); });
     },
   }).addTo(map);
 
-  // Init layer groups
+  // Init all layer groups
   mtrLayer = L.layerGroup().addTo(map);
   busLayer = L.layerGroup();
   tramLayer = L.layerGroup().addTo(map);
+  lightRailLayer = L.layerGroup();
+  ferryLayer = L.layerGroup().addTo(map);
 
   await transportStore.fetchAll();
   renderMtr();
   renderTram();
+  renderLightRail();
+  renderFerry();
 
-  map.on("moveend", () => {
-    if (layers.value.bus) loadBusStops();
-  });
+  map.on("moveend", () => { if (layers.value.bus) loadBusStops(); });
 }
 
 function renderMtr() {
   mtrLayer.clearLayers();
   for (const line of transportStore.mtrLines) {
-    const coords = (line.stations || [])
-      .filter((s: any) => s.lat && s.lng)
-      .map((s: any) => [s.lat, s.lng] as [number, number]);
-
+    const coords = (line.stations || []).filter((s: any) => s.lat && s.lng).map((s: any) => [s.lat, s.lng] as [number, number]);
     if (coords.length > 1) {
-      L.polyline(coords, { color: line.color || "#666", weight: 3, opacity: 0.8 }).addTo(mtrLayer);
+      L.polyline(coords, { color: line.color || "#666", weight: 3.5, opacity: 0.85 }).addTo(mtrLayer);
     }
-
     for (const station of line.stations || []) {
       if (!station.lat || !station.lng) continue;
       L.circleMarker([station.lat, station.lng], {
-        radius: 5,
-        color: "#fff",
-        weight: 2,
-        fillColor: line.color || "#666",
-        fillOpacity: 1,
-      })
-        .bindPopup(`<strong>${station.name_en}</strong><br>${station.name_zh}<br><small>${line.name_en}</small>`)
+        radius: 5, color: "#fff", weight: 2, fillColor: line.color || "#666", fillOpacity: 1,
+      }).bindPopup(`<div style="font-family:Inter,sans-serif"><strong>${station.name_en}</strong><br><span style="color:#94a3b8">${station.name_zh}</span><br><span class="badge" style="background:${line.color};color:white;padding:2px 6px;border-radius:4px;font-size:10px">${line.name_en}</span></div>`)
         .addTo(mtrLayer);
     }
   }
@@ -208,22 +183,45 @@ function renderMtr() {
 
 function renderTram() {
   tramLayer.clearLayers();
-  const coords: [number, number][] = [];
-  for (const stop of transportStore.tramStops) {
-    coords.push([stop.lat, stop.lng]);
-    L.circleMarker([stop.lat, stop.lng], {
-      radius: 3,
-      color: "#059669",
-      weight: 1,
-      fillColor: "#10b981",
-      fillOpacity: 1,
-    })
-      .bindPopup(`<strong>${stop.name_en}</strong><br>${stop.name_zh}<br><small>Tram Stop</small>`)
+  const stops = transportStore.tramStops.filter(s => !s.id.startsWith("PT"));
+  const peakStops = transportStore.tramStops.filter(s => s.id.startsWith("PT"));
+
+  // Main tram line
+  const coords: [number, number][] = stops.filter(s => !s.id.startsWith("T3")).map(s => [s.lat, s.lng]);
+  if (coords.length > 1) L.polyline(coords, { color: "#059669", weight: 2.5, opacity: 0.7, dashArray: "6 4" }).addTo(tramLayer);
+
+  for (const stop of stops) {
+    L.circleMarker([stop.lat, stop.lng], { radius: 3, color: "#059669", weight: 1, fillColor: "#10b981", fillOpacity: 1 })
+      .bindPopup(`<strong>${stop.name_en}</strong><br>${stop.name_zh || ""}<br><small style="color:#059669">Tram</small>`)
       .addTo(tramLayer);
   }
-  const mainLine = coords.filter((_, i) => i < 22);
-  if (mainLine.length > 1) {
-    L.polyline(mainLine, { color: "#059669", weight: 2, opacity: 0.6, dashArray: "4 4" }).addTo(tramLayer);
+
+  // Peak Tram
+  if (peakStops.length > 1) {
+    L.polyline(peakStops.map(s => [s.lat, s.lng] as [number, number]), { color: "#dc2626", weight: 2.5, opacity: 0.7 }).addTo(tramLayer);
+  }
+  for (const stop of peakStops) {
+    L.circleMarker([stop.lat, stop.lng], { radius: 3, color: "#dc2626", weight: 1, fillColor: "#ef4444", fillOpacity: 1 })
+      .bindPopup(`<strong>${stop.name_en}</strong><br>${stop.name_zh || ""}<br><small style="color:#dc2626">Peak Tram</small>`)
+      .addTo(tramLayer);
+  }
+}
+
+function renderLightRail() {
+  lightRailLayer.clearLayers();
+  for (const stop of transportStore.lightRailStops) {
+    L.circleMarker([stop.lat, stop.lng], { radius: 3.5, color: "#d97706", weight: 1, fillColor: "#f59e0b", fillOpacity: 1 })
+      .bindPopup(`<strong>${stop.name_en}</strong><br>${stop.name_zh || ""}<br><small style="color:#d97706">Light Rail</small>`)
+      .addTo(lightRailLayer);
+  }
+}
+
+function renderFerry() {
+  ferryLayer.clearLayers();
+  for (const pier of transportStore.ferryPiers) {
+    L.circleMarker([pier.lat, pier.lng], { radius: 5, color: "#0284c7", weight: 2, fillColor: "#38bdf8", fillOpacity: 0.9 })
+      .bindPopup(`<strong>${pier.name_en}</strong><br>${pier.name_zh || ""}<br><small style="color:#0284c7">${pier.operator?.replace(/_/g, " ") || "Ferry"}</small>`)
+      .addTo(ferryLayer);
   }
 }
 
@@ -231,21 +229,15 @@ async function loadBusStops() {
   if (!map) return;
   const bounds = map.getBounds();
   await transportStore.fetchBusStops({
-    minLat: bounds.getSouth(),
-    maxLat: bounds.getNorth(),
-    minLng: bounds.getWest(),
-    maxLng: bounds.getEast(),
+    minLat: bounds.getSouth(), maxLat: bounds.getNorth(),
+    minLng: bounds.getWest(), maxLng: bounds.getEast(),
   });
   busLayer.clearLayers();
   for (const stop of transportStore.busStops) {
-    const color = stop.operator === "gmb" ? "#8b5cf6" : "#f59e0b";
-    L.circleMarker([stop.lat, stop.lng], {
-      radius: 2,
-      color,
-      fillColor: color,
-      fillOpacity: 0.6,
-    })
-      .bindPopup(`<strong>${stop.name_en}</strong><br>${stop.name_zh}<br><small>${stop.operator.toUpperCase()}</small>`)
+    const colors: Record<string, string> = { kmb: "#f59e0b", ctb: "#3b82f6", gmb: "#8b5cf6", nlb: "#14b8a6", mtr_bus: "#f43f5e" };
+    const color = colors[stop.operator] || "#94a3b8";
+    L.circleMarker([stop.lat, stop.lng], { radius: 2.5, color, fillColor: color, fillOpacity: 0.7, weight: 0 })
+      .bindPopup(`<strong>${stop.name_en}</strong><br>${stop.name_zh}<br><small style="color:${color}">${stop.operator.toUpperCase()}</small>`)
       .addTo(busLayer);
   }
 }
@@ -253,20 +245,15 @@ async function loadBusStops() {
 function toggleLayer(key: keyof typeof layers.value) {
   layers.value[key] = !layers.value[key];
   if (!map) return;
-
   const layerMap: Record<string, L.LayerGroup | L.GeoJSON> = {
-    districts: districtLayer,
-    mtr: mtrLayer,
-    bus: busLayer,
-    tram: tramLayer,
+    districts: districtLayer, mtr: mtrLayer, bus: busLayer, tram: tramLayer, lightRail: lightRailLayer, ferry: ferryLayer,
   };
-
   const layer = layerMap[key];
   if (!layer) return;
-
   if (layers.value[key]) {
     map.addLayer(layer);
     if (key === "bus") loadBusStops();
+    if (key === "lightRail") renderLightRail();
   } else {
     map.removeLayer(layer);
   }
@@ -276,21 +263,41 @@ onMounted(initMap);
 </script>
 
 <template>
-  <div class="relative h-[calc(100vh-7rem)]">
+  <div class="relative h-screen">
     <div ref="mapContainer" class="absolute inset-0"></div>
 
-    <!-- Layer controls -->
-    <div class="absolute top-4 right-4 z-[1000] bg-white rounded-lg shadow-md p-3 space-y-3 text-sm w-48">
-      <div class="font-semibold text-gray-700 text-xs uppercase">Layers</div>
-      <label v-for="(val, key) in layers" :key="key" class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" :checked="val" @change="toggleLayer(key as any)" class="rounded" />
-        <span class="capitalize">{{ key === "mtr" ? "MTR" : key === "bus" ? "Bus (KMB/CTB/GMB)" : key }}</span>
-      </label>
+    <!-- Toggle button -->
+    <button
+      @click="controlsOpen = !controlsOpen"
+      class="absolute top-4 right-4 z-[1000] bg-white rounded-xl shadow-lg p-2.5 hover:bg-slate-50 transition-colors"
+      :class="{ 'right-[220px]': controlsOpen }"
+    >
+      <svg class="w-5 h-5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" />
+      </svg>
+    </button>
 
-      <div class="border-t pt-2">
-        <div class="font-semibold text-gray-700 text-xs uppercase mb-1">Heatmap</div>
-        <select v-model="heatmapMetric" class="w-full border rounded px-2 py-1 text-xs">
-          <option value="none">None (zone colors)</option>
+    <!-- Controls panel -->
+    <div
+      v-show="controlsOpen"
+      class="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 space-y-4 w-52"
+    >
+      <div>
+        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Layers</div>
+        <div class="space-y-1.5">
+          <label v-for="(val, key) in layers" :key="key" class="flex items-center gap-2.5 cursor-pointer py-0.5">
+            <input type="checkbox" :checked="val" @change="toggleLayer(key as any)" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" />
+            <span class="text-xs text-slate-600">
+              {{ key === "mtr" ? "MTR" : key === "bus" ? "Bus Stops" : key === "lightRail" ? "Light Rail" : key === "ferry" ? "Ferry Piers" : key === "tram" ? "Tram & Peak" : "Districts" }}
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3">
+        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Heatmap</div>
+        <select v-model="heatmapMetric" class="select text-xs py-1.5">
+          <option value="none">Off (zone colors)</option>
           <option value="stock">Domestic Units</option>
           <option value="office">Office Units</option>
           <option value="vacancy">Vacancy Rate</option>
@@ -300,21 +307,24 @@ onMounted(initMap);
     </div>
 
     <!-- Legend -->
-    <div class="absolute bottom-4 left-4 z-[1000] bg-white rounded-lg shadow-md p-3 text-xs space-y-1">
-      <div class="font-semibold text-gray-700">Legend</div>
+    <div class="absolute bottom-6 left-4 z-[1000] bg-white/95 backdrop-blur-md rounded-2xl shadow-lg p-4 text-xs space-y-1.5">
+      <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Legend</div>
       <template v-if="heatmapMetric === 'none'">
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-blue-500"></span> HK Island</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-red-500"></span> Kowloon</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-green-500"></span> New Territories</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-500"></span> HK Island</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500"></span> Kowloon</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> New Territories</div>
       </template>
       <template v-else>
-        <div class="flex items-center gap-2"><span class="w-8 h-3 rounded" style="background: linear-gradient(to right, #fef3c7, #f59e0b, #dc2626)"></span> Low → High</div>
-        <div class="text-gray-400">{{ { stock: "Domestic units", office: "Office sqft", vacancy: "Vacancy %", price: "HKD/sqft" }[heatmapMetric] }}</div>
+        <div class="flex items-center gap-2"><span class="w-10 h-3 rounded" style="background: linear-gradient(to right, #fef3c7, #f59e0b, #dc2626)"></span> Low - High</div>
       </template>
-      <div class="border-t mt-1 pt-1">
+      <div class="border-t border-slate-100 mt-2 pt-2 space-y-1">
         <div class="flex items-center gap-2"><span class="w-3 h-0.5 bg-emerald-600"></span> Tram</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500"></span> KMB/CTB Bus</div>
-        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-violet-500"></span> GMB Minibus</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-0.5 bg-red-500"></span> Peak Tram</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400 border border-amber-500" style="width:8px;height:8px"></span> KMB</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500" style="width:8px;height:8px"></span> CityBus</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-violet-500" style="width:8px;height:8px"></span> GMB</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500" style="width:8px;height:8px"></span> Light Rail</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400" style="width:8px;height:8px"></span> Ferry</div>
       </div>
     </div>
   </div>

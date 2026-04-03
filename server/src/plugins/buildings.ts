@@ -9,11 +9,13 @@ export const buildingsPlugin = new Elysia({ prefix: "/api/buildings" })
       FROM building_stock bs
       JOIN districts d ON bs.district_id = d.id
     `;
+    const params: any[] = [];
     if (query.type) {
-      sql += ` WHERE bs.property_type = '${query.type}'`;
+      sql += " WHERE bs.property_type = ?";
+      params.push(query.type);
     }
     sql += " ORDER BY bs.district_id";
-    return sqlite.query(sql).all();
+    return sqlite.query(sql).all(...params);
   }, {
     query: t.Object({
       type: t.Optional(t.String()),

@@ -21,11 +21,13 @@ export const districtsPlugin = new Elysia({ prefix: "/api" })
       FROM districts d
       JOIN zones z ON d.zone_id = z.id
     `;
+    const params: any[] = [];
     if (query.zoneId) {
-      sql += ` WHERE d.zone_id = '${query.zoneId}'`;
+      sql += " WHERE d.zone_id = ?";
+      params.push(query.zoneId);
     }
     sql += " ORDER BY d.id";
-    return sqlite.query(sql).all();
+    return sqlite.query(sql).all(...params);
   }, {
     query: t.Object({
       zoneId: t.Optional(t.String()),

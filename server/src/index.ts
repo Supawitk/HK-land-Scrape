@@ -7,6 +7,9 @@ import { transportPlugin } from "./plugins/transport";
 import { populationPlugin } from "./plugins/population";
 import { scraperPlugin } from "./plugins/scraper";
 import { buildingsPlugin } from "./plugins/buildings";
+import { weatherPlugin } from "./plugins/weather";
+import { livabilityPlugin } from "./plugins/livability";
+import { amenitiesPlugin } from "./plugins/amenities";
 
 const PORT = parseInt(process.env.PORT || "3000");
 
@@ -17,14 +20,14 @@ const app = new Elysia()
     documentation: {
       info: {
         title: "HK Property Dashboard API",
-        version: "1.0.0",
-        description: "Hong Kong property data analysis API with transport, population, and price data",
+        version: "1.1.0",
+        description: "Hong Kong property data analysis API with transport, population, weather, air quality, and price data",
       },
     },
   }))
   .get("/", () => ({
     name: "HK Property Dashboard API",
-    version: "1.0.0",
+    version: "1.1.0",
     docs: "/docs",
   }))
   .use(districtsPlugin)
@@ -33,6 +36,9 @@ const app = new Elysia()
   .use(populationPlugin)
   .use(scraperPlugin)
   .use(buildingsPlugin)
+  .use(weatherPlugin)
+  .use(livabilityPlugin)
+  .use(amenitiesPlugin)
   .listen(PORT);
 
 console.log(`🏠 HK Property Dashboard API running at http://localhost:${PORT}`);
